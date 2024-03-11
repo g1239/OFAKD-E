@@ -1,0 +1,143 @@
+2024-03-11 14:36:19,743 -                train: [    INFO] - Training with a single process on 1 GPUs.
+2024-03-11 14:36:20,978 -  timm.models.helpers: [    INFO] - Loaded model from checkpoint '/wzy/KD-engine/cache/ckpt/deit_tiny_patch16_224-a1311bcf.pth'
+2024-03-11 14:36:21,082 -                train: [    INFO] - Model mobilenetv3 created, param count:4231976
+2024-03-11 14:36:21,083 -     timm.data.config: [    INFO] - Data processing configuration for current model + dataset:
+2024-03-11 14:36:21,085 -     timm.data.config: [    INFO] - 	input_size: (3, 224, 224)
+2024-03-11 14:36:21,086 -     timm.data.config: [    INFO] - 	interpolation: bicubic
+2024-03-11 14:36:21,086 -     timm.data.config: [    INFO] - 	mean: (0.485, 0.456, 0.406)
+2024-03-11 14:36:21,087 -     timm.data.config: [    INFO] - 	std: (0.229, 0.224, 0.225)
+2024-03-11 14:36:21,087 -     timm.data.config: [    INFO] - 	crop_pct: 0.875
+2024-03-11 14:36:22,922 -                train: [    INFO] - 
+-------------------------------
+Learnable parameters
+Student: 4.23M
+Extra: 0.00M
+-------------------------------
+2024-03-11 14:36:29,291 -                train: [    INFO] - AMP not enabled. Training in float32.
+2024-03-11 14:36:29,292 -                train: [    INFO] - Scheduled epochs: 10
+2024-03-11 14:36:33,327 -                train: [    INFO] - Train: 0 [   0/390 (  0%)]  Loss: 9.304 (9.30)  Loss_gt: 6.940 (6.94)  Loss_kd: 2.363 (2.36) LR: 1.000e-04
+2024-03-11 14:37:01,126 -                train: [    INFO] - Train: 0 [ 200/390 ( 51%)]  Loss: 8.840 (9.04)  Loss_gt: 6.765 (6.82)  Loss_kd: 2.075 (2.22) LR: 1.000e-04
+2024-03-11 14:37:27,200 -                train: [    INFO] - Train: 0 [ 389/390 (100%)]  Loss: 8.561 (8.91)  Loss_gt: 6.528 (6.73)  Loss_kd: 2.033 (2.18) LR: 1.000e-04
+2024-03-11 14:37:28,686 -                train: [    INFO] - Test: [   0/78]  Time: 1.483 (1.483)  Loss:  6.4653 (6.4653)  Acc@1:  0.0000 ( 0.0000)  Acc@5:  4.6875 ( 4.6875)
+2024-03-11 14:37:32,221 -                train: [    INFO] - Test: [  78/78]  Time: 0.170 (0.064)  Loss:  6.4500 (6.4512)  Acc@1:  0.0000 ( 0.0400)  Acc@5:  0.0000 ( 4.6600)
+2024-03-11 14:37:32,344 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:37:33,029 -                train: [    INFO] - Train: 1 [   0/390 (  0%)]  Loss: 8.582 (8.58)  Loss_gt: 6.507 (6.51)  Loss_kd: 2.074 (2.07) LR: 1.673e-02
+2024-03-11 14:38:00,788 -                train: [    INFO] - Train: 1 [ 200/390 ( 51%)]  Loss: 6.853 (7.31)  Loss_gt: 4.906 (5.32)  Loss_kd: 1.947 (1.99) LR: 1.673e-02
+2024-03-11 14:38:27,315 -                train: [    INFO] - Train: 1 [ 389/390 (100%)]  Loss: 6.661 (7.04)  Loss_gt: 4.738 (5.12)  Loss_kd: 1.922 (1.92) LR: 1.673e-02
+2024-03-11 14:38:27,722 -                train: [    INFO] - Test: [   0/78]  Time: 0.405 (0.405)  Loss:  4.4986 (4.4986)  Acc@1: 11.7188 (11.7188)  Acc@5: 35.9375 (35.9375)
+2024-03-11 14:38:31,152 -                train: [    INFO] - Test: [  78/78]  Time: 0.006 (0.049)  Loss:  4.2357 (4.4976)  Acc@1:  6.2500 ( 9.9400)  Acc@5: 43.7500 (31.7300)
+2024-03-11 14:38:31,285 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:38:31,954 -                train: [    INFO] - Train: 2 [   0/390 (  0%)]  Loss: 6.425 (6.43)  Loss_gt: 4.667 (4.67)  Loss_kd: 1.758 (1.76) LR: 3.337e-02
+2024-03-11 14:38:59,681 -                train: [    INFO] - Train: 2 [ 200/390 ( 51%)]  Loss: 6.276 (6.52)  Loss_gt: 4.642 (4.77)  Loss_kd: 1.634 (1.75) LR: 3.337e-02
+2024-03-11 14:39:26,449 -                train: [    INFO] - Train: 2 [ 389/390 (100%)]  Loss: 6.156 (6.40)  Loss_gt: 4.594 (4.68)  Loss_kd: 1.562 (1.72) LR: 3.337e-02
+2024-03-11 14:39:26,884 -                train: [    INFO] - Test: [   0/78]  Time: 0.433 (0.433)  Loss:  4.0671 (4.0671)  Acc@1: 15.6250 (15.6250)  Acc@5: 49.2188 (49.2188)
+2024-03-11 14:39:30,319 -                train: [    INFO] - Test: [  78/78]  Time: 0.008 (0.049)  Loss:  4.2029 (4.1096)  Acc@1: 25.0000 (16.8400)  Acc@5: 31.2500 (42.8000)
+2024-03-11 14:39:30,679 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:39:31,300 -                train: [    INFO] - Train: 3 [   0/390 (  0%)]  Loss: 6.083 (6.08)  Loss_gt: 4.450 (4.45)  Loss_kd: 1.633 (1.63) LR: 3.990e-02
+2024-03-11 14:39:59,341 -                train: [    INFO] - Train: 3 [ 200/390 ( 51%)]  Loss: 6.078 (6.06)  Loss_gt: 4.406 (4.42)  Loss_kd: 1.672 (1.63) LR: 3.990e-02
+2024-03-11 14:40:25,283 -                train: [    INFO] - Train: 3 [ 389/390 (100%)]  Loss: 5.914 (5.97)  Loss_gt: 4.322 (4.36)  Loss_kd: 1.592 (1.61) LR: 3.990e-02
+2024-03-11 14:40:25,665 -                train: [    INFO] - Test: [   0/78]  Time: 0.380 (0.380)  Loss:  3.4980 (3.4980)  Acc@1: 25.7812 (25.7812)  Acc@5: 60.1562 (60.1562)
+2024-03-11 14:40:29,121 -                train: [    INFO] - Test: [  78/78]  Time: 0.008 (0.049)  Loss:  3.7983 (3.5103)  Acc@1: 25.0000 (27.4800)  Acc@5: 50.0000 (57.2200)
+2024-03-11 14:40:29,277 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:40:29,994 -                train: [    INFO] - Train: 4 [   0/390 (  0%)]  Loss: 6.100 (6.10)  Loss_gt: 4.426 (4.43)  Loss_kd: 1.674 (1.67) LR: 3.307e-02
+2024-03-11 14:40:58,119 -                train: [    INFO] - Train: 4 [ 200/390 ( 51%)]  Loss: 5.920 (5.64)  Loss_gt: 4.473 (4.11)  Loss_kd: 1.447 (1.54) LR: 3.307e-02
+2024-03-11 14:41:24,231 -                train: [    INFO] - Train: 4 [ 389/390 (100%)]  Loss: 5.211 (5.60)  Loss_gt: 3.724 (4.07)  Loss_kd: 1.488 (1.52) LR: 3.307e-02
+2024-03-11 14:41:24,694 -                train: [    INFO] - Test: [   0/78]  Time: 0.462 (0.462)  Loss:  3.4167 (3.4167)  Acc@1: 30.4688 (30.4688)  Acc@5: 60.9375 (60.9375)
+2024-03-11 14:41:28,184 -                train: [    INFO] - Test: [  78/78]  Time: 0.006 (0.050)  Loss:  3.6606 (3.4413)  Acc@1: 43.7500 (29.5700)  Acc@5: 56.2500 (59.2100)
+2024-03-11 14:41:28,325 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-4.pth.tar', 29.57)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:41:28,907 -                train: [    INFO] - Train: 5 [   0/390 (  0%)]  Loss: 5.588 (5.59)  Loss_gt: 4.089 (4.09)  Loss_kd: 1.499 (1.50) LR: 2.550e-02
+2024-03-11 14:41:56,911 -                train: [    INFO] - Train: 5 [ 200/390 ( 51%)]  Loss: 5.324 (5.34)  Loss_gt: 3.889 (3.88)  Loss_kd: 1.434 (1.46) LR: 2.550e-02
+2024-03-11 14:42:22,857 -                train: [    INFO] - Train: 5 [ 389/390 (100%)]  Loss: 5.350 (5.32)  Loss_gt: 3.880 (3.86)  Loss_kd: 1.471 (1.46) LR: 2.550e-02
+2024-03-11 14:42:23,265 -                train: [    INFO] - Test: [   0/78]  Time: 0.406 (0.406)  Loss:  2.9601 (2.9601)  Acc@1: 37.5000 (37.5000)  Acc@5: 71.8750 (71.8750)
+2024-03-11 14:42:26,731 -                train: [    INFO] - Test: [  78/78]  Time: 0.010 (0.049)  Loss:  2.6783 (3.1577)  Acc@1: 50.0000 (36.3500)  Acc@5: 75.0000 (65.4200)
+2024-03-11 14:42:26,877 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-5.pth.tar', 36.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-4.pth.tar', 29.57)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:42:27,543 -                train: [    INFO] - Train: 6 [   0/390 (  0%)]  Loss: 5.108 (5.11)  Loss_gt: 3.760 (3.76)  Loss_kd: 1.348 (1.35) LR: 1.793e-02
+2024-03-11 14:42:55,366 -                train: [    INFO] - Train: 6 [ 200/390 ( 51%)]  Loss: 4.890 (5.13)  Loss_gt: 3.524 (3.70)  Loss_kd: 1.366 (1.43) LR: 1.793e-02
+2024-03-11 14:43:21,593 -                train: [    INFO] - Train: 6 [ 389/390 (100%)]  Loss: 5.105 (5.10)  Loss_gt: 3.772 (3.69)  Loss_kd: 1.332 (1.42) LR: 1.793e-02
+2024-03-11 14:43:21,995 -                train: [    INFO] - Test: [   0/78]  Time: 0.400 (0.400)  Loss:  2.8998 (2.8998)  Acc@1: 42.9688 (42.9688)  Acc@5: 70.3125 (70.3125)
+2024-03-11 14:43:25,499 -                train: [    INFO] - Test: [  78/78]  Time: 0.005 (0.049)  Loss:  2.8320 (2.9095)  Acc@1: 43.7500 (40.8700)  Acc@5: 68.7500 (70.3300)
+2024-03-11 14:43:25,608 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-6.pth.tar', 40.87)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-5.pth.tar', 36.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-4.pth.tar', 29.57)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:43:26,218 -                train: [    INFO] - Train: 7 [   0/390 (  0%)]  Loss: 4.998 (5.00)  Loss_gt: 3.629 (3.63)  Loss_kd: 1.369 (1.37) LR: 1.110e-02
+2024-03-11 14:43:53,829 -                train: [    INFO] - Train: 7 [ 200/390 ( 51%)]  Loss: 4.596 (4.90)  Loss_gt: 3.201 (3.52)  Loss_kd: 1.395 (1.38) LR: 1.110e-02
+2024-03-11 14:44:20,206 -                train: [    INFO] - Train: 7 [ 389/390 (100%)]  Loss: 4.863 (4.89)  Loss_gt: 3.533 (3.51)  Loss_kd: 1.330 (1.38) LR: 1.110e-02
+2024-03-11 14:44:20,628 -                train: [    INFO] - Test: [   0/78]  Time: 0.420 (0.420)  Loss:  2.3786 (2.3786)  Acc@1: 53.1250 (53.1250)  Acc@5: 82.8125 (82.8125)
+2024-03-11 14:44:24,058 -                train: [    INFO] - Test: [  78/78]  Time: 0.009 (0.049)  Loss:  2.5244 (2.5447)  Acc@1: 62.5000 (49.9200)  Acc@5: 81.2500 (78.6700)
+2024-03-11 14:44:24,170 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-7.pth.tar', 49.92)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-6.pth.tar', 40.87)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-5.pth.tar', 36.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-4.pth.tar', 29.57)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:44:24,804 -                train: [    INFO] - Train: 8 [   0/390 (  0%)]  Loss: 4.948 (4.95)  Loss_gt: 3.630 (3.63)  Loss_kd: 1.318 (1.32) LR: 5.679e-03
+2024-03-11 14:44:52,233 -                train: [    INFO] - Train: 8 [ 200/390 ( 51%)]  Loss: 4.622 (4.72)  Loss_gt: 3.226 (3.38)  Loss_kd: 1.396 (1.35) LR: 5.679e-03
+2024-03-11 14:45:18,887 -                train: [    INFO] - Train: 8 [ 389/390 (100%)]  Loss: 4.787 (4.71)  Loss_gt: 3.481 (3.37)  Loss_kd: 1.306 (1.34) LR: 5.679e-03
+2024-03-11 14:45:19,359 -                train: [    INFO] - Test: [   0/78]  Time: 0.470 (0.470)  Loss:  2.2612 (2.2612)  Acc@1: 54.6875 (54.6875)  Acc@5: 85.9375 (85.9375)
+2024-03-11 14:45:22,689 -                train: [    INFO] - Test: [  78/78]  Time: 0.006 (0.048)  Loss:  2.2949 (2.3214)  Acc@1: 68.7500 (54.3500)  Acc@5: 75.0000 (81.7700)
+2024-03-11 14:45:22,816 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-8.pth.tar', 54.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-7.pth.tar', 49.92)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-6.pth.tar', 40.87)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-5.pth.tar', 36.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-4.pth.tar', 29.57)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:45:23,571 -                train: [    INFO] - Train: 9 [   0/390 (  0%)]  Loss: 4.844 (4.84)  Loss_gt: 3.562 (3.56)  Loss_kd: 1.282 (1.28) LR: 2.199e-03
+2024-03-11 14:45:51,315 -                train: [    INFO] - Train: 9 [ 200/390 ( 51%)]  Loss: 4.472 (4.60)  Loss_gt: 3.113 (3.26)  Loss_kd: 1.359 (1.33) LR: 2.199e-03
+2024-03-11 14:46:17,827 -                train: [    INFO] - Train: 9 [ 389/390 (100%)]  Loss: 4.487 (4.58)  Loss_gt: 3.054 (3.25)  Loss_kd: 1.432 (1.32) LR: 2.199e-03
+2024-03-11 14:46:18,243 -                train: [    INFO] - Test: [   0/78]  Time: 0.415 (0.415)  Loss:  2.0798 (2.0798)  Acc@1: 61.7188 (61.7188)  Acc@5: 85.9375 (85.9375)
+2024-03-11 14:46:21,523 -                train: [    INFO] - Test: [  78/78]  Time: 0.005 (0.047)  Loss:  2.0725 (2.2474)  Acc@1: 62.5000 (57.1100)  Acc@5: 81.2500 (83.5800)
+2024-03-11 14:46:21,631 - timm.utils.checkpoint_saver: [    INFO] - Current checkpoints:
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-9.pth.tar', 57.11)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-8.pth.tar', 54.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-7.pth.tar', 49.92)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-6.pth.tar', 40.87)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-5.pth.tar', 36.35)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-4.pth.tar', 29.57)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-3.pth.tar', 27.48)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-2.pth.tar', 16.84)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-1.pth.tar', 9.94)
+ ('./output/train/20240311-143629-mobilenetv3-224/checkpoint/checkpoint-0.pth.tar', 0.04)
+
+2024-03-11 14:46:21,632 -                train: [    INFO] - *** Best metric: 57.11 (epoch 9)

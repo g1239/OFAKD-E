@@ -4,3 +4,4 @@ from .hire_mlp import *
 from .mobilenetv1 import *
 from .swin_transformer import *
 from .vip import *
+from .test import *

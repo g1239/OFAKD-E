@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 from timm.models.registry import register_model
 
-__all__ = ['MobileNetV3', 'mobilenetv3']
+__all__ = ['MobileNetV3', 'mobilenetv3'] # a copy of mobilenetv1.py for testing the train pipeline
 
 
 class MobileNetV3(nn.Module):

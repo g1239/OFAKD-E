@@ -44,7 +44,7 @@ def stage_info(self, stage):
     if self.default_cfg['architecture'] == 'resnet18':
         if stage == 1:
             index = 0
-            shape = (64, 56, 56)
+            shape = (64, 56, 56) #输入通道数与卷积核尺寸
         elif stage == 2:
             index = 1
             shape = (128, 28, 28)

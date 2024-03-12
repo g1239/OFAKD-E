@@ -4,14 +4,14 @@ from .registry import register_distiller
 
 
 class BaseDistiller(nn.Module):
-    def __init__(self, student, teacher, criterion, args):
+    def __init__(self, student, teacher, criterion, args): 
         super(BaseDistiller, self).__init__()
         self.student = student
         self.teacher = teacher
         self.criterion = criterion
         self.args = args
 
-    def forward(self, image, label, *args, **kwargs):
+    def forward(self, image, label, *args, **kwargs): #具体forward过程由distiller实现
         raise NotImplementedError
 
     def get_learnable_parameters(self):
@@ -39,7 +39,7 @@ class Vanilla(BaseDistiller):
     def forward(self, image, label, *args, **kwargs):
         logits_student = self.student(image)
 
-        loss_gt = self.args.gt_loss_weight * self.criterion(logits_student, label)
+        loss_gt = self.args.gt_loss_weight * self.criterion(logits_student, label)  
         losses_dict = {
             "loss_gt": loss_gt,
         }

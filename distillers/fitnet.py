@@ -22,11 +22,11 @@ class FitNet(BaseDistiller):
             _, size_s = self.student.stage_info(stage)
             _, size_t = self.teacher.stage_info(stage)
 
-            in_chans_s, _, _ = size_s
+            in_chans_s, _, _ = size_s  #获取输入通道数
             in_chans_t, _, _ = size_t
 
             projector = nn.Conv2d(in_chans_s, in_chans_t, 1, 1, 0, bias=False)
-            set_module_dict(self.projector, stage, projector)
+            set_module_dict(self.projector, stage, projector) #将stage和卷积映射层记录到self.projector字典中
 
         self.projector.apply(init_weights)
 

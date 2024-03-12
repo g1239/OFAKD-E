@@ -14,14 +14,14 @@ class KD(BaseDistiller):
         super(KD, self).__init__(student, teacher, criterion, args)
 
     def forward(self, image, label, *args, **kwargs):
-        with torch.no_grad():
+        with torch.no_grad():  #禁用局部代码块中的梯度计算
             self.teacher.eval()
             logits_teacher = self.teacher(image)
 
         logits_student = self.student(image)
 
-        loss_gt = self.args.gt_loss_weight * self.criterion(logits_student, label)
-        loss_kd = self.args.kd_loss_weight * kd_loss(logits_student, logits_teacher, self.args.kd_temperature)
+        loss_gt = self.args.gt_loss_weight * self.criterion(logits_student, label)         #gt损失由train.py读取训练命令中参数确定，默认为交叉熵损失
+        loss_kd = self.args.kd_loss_weight * kd_loss(logits_student, logits_teacher, self.args.kd_temperature)   #由utils.py中实现
         losses_dict = {
             "loss_gt": loss_gt,
             "loss_kd": loss_kd,
@@ -30,7 +30,7 @@ class KD(BaseDistiller):
 
 
 @register_distiller
-class BKD(BaseDistiller):
+class BKD(BaseDistiller):   #与kd类唯一区别在于蒸馏损失基于二值交叉熵
     requires_feat = False
 
     def __init__(self, student, teacher, criterion, args, **kwargs):

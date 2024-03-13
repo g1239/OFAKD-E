@@ -25,7 +25,7 @@ class FitNet(BaseDistiller):
             in_chans_s, _, _ = size_s  #获取输入通道数
             in_chans_t, _, _ = size_t
 
-            projector = nn.Conv2d(in_chans_s, in_chans_t, 1, 1, 0, bias=False)
+            projector = nn.Conv2d(in_chans_s, in_chans_t, 1, 1, 0, bias=False) #方向为学生->教师,低维到高维的映射方向减少信息损失
             set_module_dict(self.projector, stage, projector) #将stage和卷积映射层记录到self.projector字典中
 
         self.projector.apply(init_weights)
@@ -42,7 +42,7 @@ class FitNet(BaseDistiller):
             idx_s, _ = self.student.stage_info(stage)
             idx_t, _ = self.teacher.stage_info(stage)
 
-            feat_s = get_module_dict(self.projector, stage)(feat_student[idx_s])
+            feat_s = get_module_dict(self.projector, stage)(feat_student[idx_s]) #将特征交给对应stage的projector处理
             feat_t = feat_teacher[idx_t]
 
             fitnet_losses.append(F.mse_loss(feat_s, feat_t))

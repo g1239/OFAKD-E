@@ -34,9 +34,9 @@ def forward(self, x, requires_feat=False):
         x = self.fc(x)
         return x, feat
     else:
-        x = self.forward_features(x, requires_feat=False)
-        x = self.forward_head(x)
-        return x
+        x = self.forward_features(x, requires_feat=False) #不需要特征时，forward_feature中feat.append(x)
+        x = self.forward_head(x)                          #应该会导致GPU等待pcie总线将特征写入内存
+        return x                                          #造成推理时性能下降
 
 
 @register_method
@@ -44,7 +44,7 @@ def stage_info(self, stage):
     if self.default_cfg['architecture'] == 'resnet18':
         if stage == 1:
             index = 0
-            shape = (64, 56, 56) #输入通道数与卷积核尺寸
+            shape = (64, 56, 56) #输入通道数与特征图尺寸 —— C H W
         elif stage == 2:
             index = 1
             shape = (128, 28, 28)

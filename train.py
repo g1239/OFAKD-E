@@ -413,7 +413,7 @@ def main():
 
     random_seed(args.seed, args.rank)
 
-    Distiller = get_distiller(args.distiller)
+    Distiller = get_distiller(args.distiller)   #返回值格式为<class 'distillers.kd.KD'>
 
     model = create_model(
         args.model,
@@ -526,7 +526,7 @@ def main():
         train_loss_fn = nn.CrossEntropyLoss()
     validate_loss_fn = nn.CrossEntropyLoss().cuda()
 
-    distiller = Distiller(model, teacher=teacher, criterion=train_loss_fn, args=args, num_data=len(dataset_train))
+    distiller = Distiller(model, teacher=teacher, criterion=train_loss_fn, args=args, num_data=len(dataset_train)) # TODO add auxiliary loss
     student_params, extra_params = distiller.get_learnable_parameters()
     if args.rank == 0:
         _logger.info(f'\n-------------------------------'

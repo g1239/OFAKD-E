@@ -1,7 +1,19 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
 from timm.models.registry import register_model
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+from timm.models.layers import SelectAdaptivePool2d, Linear, CondConv2d, hard_sigmoid, make_divisible, DropPath
+from timm.models.efficientnet_blocks import SqueezeExcite
+from timm.models.helpers import build_model_with_cfg
+
+import math
+from functools import partial
+
+
+
+
 
 __all__ = ['MobileNetV1', 'mobilenetv1']
 
@@ -39,10 +51,10 @@ class MobileNetV1(nn.Module):
             conv_dw(512, 512, 1),
             conv_dw(512, 512, 1),
             conv_dw(512, 512, 1),
-            conv_dw(512, 512, 1),
+            conv_dw(512, 512, 1), #11
             conv_dw(512, 1024, 2),
-            conv_dw(1024, 1024, 1),
-            nn.AvgPool2d(7),
+            conv_dw(1024, 1024, 1), #13
+            nn.AvgPool2d(7),    #14
         )
         self.fc = nn.Linear(1024, num_classes)
 

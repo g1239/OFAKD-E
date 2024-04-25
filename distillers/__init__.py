@@ -7,5 +7,5 @@ from .fitnet import FitNet
 from .kd import BKD, KD
 from .ofa import OFA
 from .rkd import RKD
-
+from .newkd import newkd
 from .registry import get_distiller

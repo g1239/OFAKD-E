@@ -27,16 +27,18 @@ class DynamicConv(nn.Module): #only repalce conv1x1
         to selective replace the normal Conv2d in relevant method of model class
     """
     def __init__(self, in_features, out_features, kernel_size, stride=1, padding='', dilation=1,
-                 groups=1, bias=False, num_experts=1):
+                 groups=1, bias=False, num_experts=4):
         super().__init__()
         print('+++', num_experts)
         self.routing = nn.Linear(in_features, num_experts)
         self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
                  groups, bias, num_experts)
+        self.routing_weights_cache = 0
         
     def forward(self, x):
         pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
         routing_weights = torch.sigmoid(self.routing(pooled_inputs))
+        self.routing_weights_cache = routing_weights  #.clone() TODO check Computational Graph
         x = self.cond_conv(x, routing_weights)
         return x
 
@@ -78,7 +80,7 @@ class BasicBlock(nn.Module):
         out += identity
         out = self.relu(out)
 
-        return out
+        return out   
 
 class BasicMoEBlock(nn.Module):
     expansion = 1
@@ -93,22 +95,26 @@ class BasicMoEBlock(nn.Module):
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicMoEBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = DynamicConv(inplanes, planes, 3, stride) #第三位置变量为kernel_size
+        self.moe_conv1 = DynamicConv(inplanes, planes, 3, stride) #第三位置变量为kernel_size
         self.bn1 = norm_layer(planes)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = DynamicConv(planes, planes, 3)
+        self.moe_conv2 = DynamicConv(planes, planes, 3)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
+        self.routing_weights_conv1 = 0
+        self.routing_weights_conv2 = 0
 
     def forward(self, x):
         identity = x
 
-        out = self.conv1(x)
+        out = self.moe_conv1(x)
+        self.routing_weights_conv1=self.moe_conv1.routing_weights_cache
         out = self.bn1(out)
         out = self.relu(out)
-
-        out = self.conv2(out)
+        
+        out = self.moe_conv2(out)
+        self.routing_weights_conv2=self.moe_conv2.routing_weights_cache
         out = self.bn2(out)
 
         if self.downsample is not None:
@@ -118,6 +124,9 @@ class BasicMoEBlock(nn.Module):
         out = self.relu(out)
 
         return out
+    
+    def get_routing_weights(self):
+        return (self.routing_weights_conv1,self.routing_weights_conv2)
 
 class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
@@ -183,24 +192,28 @@ class MoEBottleneck(nn.Module):
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = DynamicConv(inplanes, width, 1)
+        self.moe_conv1 = DynamicConv(inplanes, width, 1)
         self.bn1 = norm_layer(width)
-        self.conv2 = DynamicConv(width, width, 3, stride, groups, dilation)
+        self.moe_conv2 = DynamicConv(width, width, 3, stride, groups, dilation)
         self.bn2 = norm_layer(width)
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
+        self.routing_weights_conv1 = 0
+        self.routing_weights_conv2 = 0
 
     def forward(self, x):
         identity = x
 
-        out = self.conv1(x)
+        out = self.moe_conv1(x)
+        self.routing_weights_conv1=self.moe_conv1.routing_weights_cache
         out = self.bn1(out)
         out = self.relu(out)
 
-        out = self.conv2(out)
+        out = self.moe_conv2(out)
+        self.routing_weights_conv2=self.moe_conv2.routing_weights_cache
         out = self.bn2(out)
         out = self.relu(out)
 
@@ -214,13 +227,16 @@ class MoEBottleneck(nn.Module):
         out = self.relu(out)
 
         return out
+    
+    def get_routing_weights(self):
+        return self.routing_weights_conv1,self.routing_weights_conv2
 
-class ResNet(nn.Module):
+class ResNet_moe(nn.Module):
 
     def __init__(self, denseblock, moeblock, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
-        super(ResNet, self).__init__()
+        super(ResNet_moe, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -292,30 +308,6 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    '''def _make_moe_layer(self, block, planes, blocks, stride=1, dilate=False):
-        norm_layer = self._norm_layer
-        downsample = None
-        previous_dilation = self.dilation
-        if dilate:
-            self.dilation *= stride
-            stride = 1
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
-            )
-
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
-        self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, groups=self.groups,
-                                base_width=self.base_width, dilation=self.dilation,
-                                norm_layer=norm_layer))
-
-        return nn.Sequential(*layers)
-'''
     def _forward_impl(self, x):
         # See note [TorchScript super()]
         x = self.conv1(x)
@@ -339,7 +331,7 @@ class ResNet(nn.Module):
 
 
 def _resnet(arch, denseblock, moeblock, layers, pretrained, progress, **kwargs):
-    model = ResNet(denseblock, moeblock, layers, **kwargs)
+    model = ResNet_moe(denseblock, moeblock, layers, **kwargs)
     assert not pretrained, 'MoE Models have not pretrained weights.'
     return model
 

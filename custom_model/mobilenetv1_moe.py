@@ -20,7 +20,7 @@ class DynamicConv(nn.Module):
         to replace the normal Conv2d in relevant method of model class
     """
     def __init__(self, in_features, out_features, kernel_size=1, stride=1, padding='', dilation=1,
-                 groups=1, bias=False, num_experts=4):
+                 groups=1, bias=False, num_experts=8):
         super().__init__()
         print('+++', num_experts)
         self.routing = nn.Linear(in_features, num_experts)
@@ -31,7 +31,7 @@ class DynamicConv(nn.Module):
         pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
         routing_weights = torch.sigmoid(self.routing(pooled_inputs))
         x = self.cond_conv(x, routing_weights)
-        return x
+        return x    #, routing_weights
 
 
 
@@ -56,7 +56,7 @@ class MobileNetV1_moe(nn.Module):
                 nn.ReLU(inplace=True),
             )
 
-        def conv_dw_moe(inp, oup, stride, num_expert=2):
+        def conv_dw_moe(inp, oup, stride, num_expert=8):
             return nn.Sequential(
                 DynamicConv(inp, inp, 3, stride, 1, groups=inp, bias=False),
                 nn.BatchNorm2d(inp),
@@ -65,7 +65,7 @@ class MobileNetV1_moe(nn.Module):
                 nn.BatchNorm2d(oup),
                 nn.ReLU(inplace=True),
             )
-        
+       
         self.model = nn.Sequential(
             conv_bn(3, 32, 2),
             conv_dw(32, 64, 1),

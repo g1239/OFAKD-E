@@ -22,7 +22,7 @@ from timm.utils import *
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from custom_forward import register_new_forward
-from distillers import get_distiller
+#from distillers import get_distiller
 from utils import CIFAR100InstanceSample, ImageNetInstanceSample, TimePredictor
 from custom_model import *
 
@@ -30,5 +30,19 @@ import sys
 from collections import defaultdict
 from types import MethodType
 
-model = timm.models.create_model('resnet101_moe', pretrained=False)
-print(model)
+
+a = torch.tensor([1.,2.,3.],requires_grad=True)
+class DyConv(nn.Module): #only repalce conv1x1
+    """ Dynamic Conv layer 
+        to selective replace the normal Conv2d in relevant method of model class
+    """
+    def __init__(self, input):
+        super().__init__()
+        self.routing_weights_cache = input.clone()
+             
+        
+        print(self.routing_weights_cache.data_ptr())
+       
+
+print(a.data_ptr())
+b = DyConv(a)

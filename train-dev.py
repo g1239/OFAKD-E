@@ -60,7 +60,7 @@ try:
 except AttributeError:
     pass
 
-visible_devices = "2,3"  # 3号和4号显卡
+visible_devices = "1,2,3"  # 3号和4号显卡
 os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 
 
@@ -127,6 +127,12 @@ if True:# create a code block for readability
     parser.add_argument('--fitnet-stage', default=[1, 2, 3, 4], nargs='+', type=int)
     parser.add_argument('--fitnet-loss-weight', default=1, type=float)
 
+    #newKD parameters
+    parser.add_argument('--newkd-gt-loss', default=1, type=float) # gt loss:alpha
+    parser.add_argument('--newkd-kd-loss', default=1, type=float) # kd loss:beta
+    parser.add_argument('--newkd-routing-loss', default=0.4, type=float)   # routing loss:gamma
+    parser.add_argument('--num_expert', default=4, type=int)  # number of expert
+    
     # Misc
     parser.add_argument('--speedtest', action='store_true')
 
@@ -433,7 +439,7 @@ def main():
         bn_momentum=args.bn_momentum,
         bn_eps=args.bn_eps,
         checkpoint_path=args.initial_checkpoint)
-    if Distiller.requires_feat:
+    if Distiller.requires_feat: #or Distiller.require_route: #由distiller发起route权重和中间特征请求，修改student forward
         register_new_forward(model)
 
     teacher = None
@@ -565,7 +571,7 @@ def main():
     # setup exponential moving average of model weights, SWA could be used here too
     model_emas = None
     if args.model_ema:
-        # Important to create EMA model after cuda(), DP wrapper, and AMP but before DDP wrapper
+        # Important to create EMA model after cuda(), DP wrapper, and AMP but stabefore DDP wrapper
         model_emas = []
         for decay in args.model_ema_decay:
             model_ema = ModelEmaV2(model, decay=decay, device='cpu' if args.model_ema_force_cpu else None)

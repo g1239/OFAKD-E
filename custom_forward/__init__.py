@@ -9,5 +9,6 @@ from .resnet import *
 from .swin_transformer import *
 from .vip import *
 from .vision_transformer import *
+from .resnet_moe import *
 
 from .registry import register_new_forward

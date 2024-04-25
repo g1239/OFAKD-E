@@ -230,5 +230,15 @@ def _unpatchify(x, p):
     return imgs
 
 
-
+def is_moe_layer(distiller):
+    if hasattr(distiller, 'module'):
+        _, sizes = distiller.module.stage_info(1)
+    else:
+        _, sizes = distiller.stage_info(1)
+    if len(sizes) == 3:  # C H W
+        return True
+    elif len(sizes) == 2:  # L D
+        return False
+    else:
+        raise RuntimeError('unknown model feature shape')
 

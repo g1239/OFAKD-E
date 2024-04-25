@@ -5,53 +5,83 @@ from torch import nn
 from ._base import BaseDistiller
 from .registry import register_distiller
 from .utils import get_module_dict, init_weights, is_cnn_model, set_module_dict
-
+from .utils import kd_loss
 
 @register_distiller
-class FitNet(BaseDistiller):
-    requires_feat = True
+class newkd(BaseDistiller):
+    requires_feat = False
+    require_route = True
 
     def __init__(self, student, teacher, criterion, args, **kwargs):
-        super(FitNet, self).__init__(student, teacher, criterion, args)
+        super(newkd, self).__init__(student, teacher, criterion, args)
 
-        assert is_cnn_model(student) and is_cnn_model(teacher), 'current FitNet implementation only support cnn models!'
+        #assert is_cnn_model(student) , 'current newKD implementation only support cnn student models!'
 
         self.projector = nn.ModuleDict()
-
-        for stage in self.args.fitnet_stage:
-            _, size_s = self.student.stage_info(stage)
-            _, size_t = self.teacher.stage_info(stage)
-
-            in_chans_s, _, _ = size_s  #获取输入通道数
-            in_chans_t, _, _ = size_t
-
-            projector = nn.Conv2d(in_chans_s, in_chans_t, 1, 1, 0, bias=False) #方向为学生->教师,低维到高维的映射方向减少信息损失
-            set_module_dict(self.projector, stage, projector) #将stage和卷积映射层记录到self.projector字典中
+        #moe_position_list = [] # distinguish each moe operator
+        #routing_list = [] # cache routing weights
+        for name, operator in student.named_modules():
+            if 'moe' in name:
+                if hasattr(operator, 'routing_weights_cache'):
+                    #moe_position_list.append(name)
+                    #routing_list.append(operator.routing_weights_cache)
+                    new_name = name.replace('.','_')
+                    projector = nn.Linear(self.args.num_classes, self.args.num_expert, bias=True) #方向为教师logit->路由,尽量减少映射层数
+                    set_module_dict(self.projector, new_name, projector) #将stage和卷积映射层记录到self.projector字典中
+               
 
         self.projector.apply(init_weights)
 
     def forward(self, image, label, *args, **kwargs):
         with torch.no_grad():
             self.teacher.eval()
-            logits_teacher, feat_teacher = self.teacher(image, requires_feat=True)
+            logits_teacher = self.teacher(image)
 
-        logits_student, feat_student = self.student(image, requires_feat=True)
+        logits_student = self.student(image)
+        
+        route_student_losses = []        
+        for name, operator in self.student.named_modules():
+            if 'moe' in name:
+                if hasattr(operator, 'routing_weights_cache'):
+                    #moe_position_list.append(name)
+                    #routing_list.append(operator.routing_weights_cache)
+                    new_name = name.replace('.','_')
+                    weights_teacher = get_module_dict(self.projector, new_name)(logits_teacher) #将logit交给对应位置的projector处理，输出1*num_expert tensor
+                    route_student_losses.append( routing_loss( operator.routing_weights_cache,weights_teacher ) )#TODO pass args.moe_temperature
 
-        fitnet_losses = []
-        for stage in self.args.fitnet_stage:
-            idx_s, _ = self.student.stage_info(stage)
-            idx_t, _ = self.teacher.stage_info(stage)
-
-            feat_s = get_module_dict(self.projector, stage)(feat_student[idx_s]) #将特征交给对应stage的projector处理
-            feat_t = feat_teacher[idx_t]
-
-            fitnet_losses.append(F.mse_loss(feat_s, feat_t))
-
-        loss_fitnet = self.args.fitnet_loss_weight * sum(fitnet_losses)
-        loss_gt = self.args.gt_loss_weight * self.criterion(logits_student, label)
+        loss_kd = self.args.kd_loss_weight * dist_loss(logits_student, logits_teacher, self.args.dist_beta,
+                                                       self.args.dist_gamma, self.args.dist_tau)
+        #loss_kd = self.args.newkd_kd_loss * kd_loss(logits_student, logits_teacher, self.args.kd_temperature) #TODO pass args.moe_temperature
+        loss_gt = self.args.newkd_gt_loss * self.criterion(logits_student, label)
+        loss_route = self.args.newkd_routing_loss * torch.mean(sum(route_student_losses))
 
         losses_dict = {
+            "loss_kd": loss_kd,
             "loss_gt": loss_gt,
-            "loss_fitnet": loss_fitnet
+            "loss_route": loss_route,
         }
         return logits_student, losses_dict
+
+def routing_loss(routing_weights, weights_teacher, temperature=1.): #weights_teacher refer to weights calculate by teacher logit
+    y_t = (weights_teacher / temperature).softmax(dim=1) # use high temperature to soften weights_teacher
+    moe_loss = temperature ** 2 * (1-pearson_correlation(routing_weights, y_t)) #use soft loss to further soften the constrain
+    return moe_loss
+
+def cosine_similarity(x, y, eps=1e-8):
+    return (x * y).sum(1) / (x.norm(dim=1) * y.norm(dim=1) + eps)
+
+def pearson_correlation(x, y, eps=1e-8): #get pearson_correlation base on cosine_similarity
+    return cosine_similarity(x - x.mean(1).unsqueeze(1), y - y.mean(1).unsqueeze(1), eps)
+
+def dist_loss(logits_student, logits_teacher, beta=1., gamma=1., temperature=1.):
+    y_s = (logits_student / temperature).softmax(dim=1)
+    y_t = (logits_teacher / temperature).softmax(dim=1)
+    inter_loss = temperature ** 2 * inter_class_relation(y_s, y_t)
+    intra_loss = temperature ** 2 * intra_class_relation(y_s, y_t)
+    return beta * inter_loss + gamma * intra_loss
+
+def inter_class_relation(y_s, y_t):
+    return 1 - pearson_correlation(y_s, y_t).mean()
+
+def intra_class_relation(y_s, y_t):
+    return inter_class_relation(y_s.transpose(0, 1), y_t.transpose(0, 1))

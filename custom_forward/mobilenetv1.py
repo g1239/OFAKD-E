@@ -21,7 +21,7 @@ def forward(self, x, requires_feat=False):
     x = x.reshape(-1, 1024)
     feat.append(x)
     x = self.fc(x)
-    return (x, feat) if requires_feat else x
+    return (x, feat) if requires_feat else x  #TODO return route
 
 
 @register_method

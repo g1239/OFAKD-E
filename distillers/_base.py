@@ -30,7 +30,7 @@ class BaseDistiller(nn.Module):
 
 
 @register_distiller
-class Vanilla(BaseDistiller):
+class Vanilla(BaseDistiller): # any KD loss is not activated here, this module can be use for fine-tune/training from scratch
     requires_feat = False
 
     def __init__(self, student, teacher, criterion, args, **kwargs):

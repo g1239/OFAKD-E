@@ -30,19 +30,12 @@ import sys
 from collections import defaultdict
 from types import MethodType
 
+import torch.nn.functional as F
 
-a = torch.tensor([1.,2.,3.],requires_grad=True)
-class DyConv(nn.Module): #only repalce conv1x1
-    """ Dynamic Conv layer 
-        to selective replace the normal Conv2d in relevant method of model class
-    """
-    def __init__(self, input):
-        super().__init__()
-        self.routing_weights_cache = input.clone()
-             
-        
-        print(self.routing_weights_cache.data_ptr())
-       
-
-print(a.data_ptr())
-b = DyConv(a)
+# 定义输入向量
+shape = (4,16)
+input_vector = torch.randn(shape)
+print(input_vector.shape)
+input_vector.unsqueeze(0)
+print(input_vector.shape)
+print(input_vector)

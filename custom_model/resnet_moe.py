@@ -30,15 +30,20 @@ class DynamicConv(nn.Module): #only repalce conv1x1
                  groups=1, bias=False, num_experts=4):
         super().__init__()
         print('+++', num_experts)
-        self.routing = nn.Linear(in_features, num_experts)
+        self.num_experts = num_experts
+        #self.routing = nn.Linear(in_features, num_experts)
+        self.interm_d = 256
+        self.routing = nn.Linear(in_features, self.interm_d)
+        #self.avg_pool = F.avg_pool1d(_ , kernel_size=self.interm_d // num_experts , stride=self.interm_d // num_experts)  # (self.interm_d,here is 256) mod num_experts must be 0 !!! 
         self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
                  groups, bias, num_experts)
         self.routing_weights_cache = 0
         
     def forward(self, x):
         pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
-        routing_weights = torch.sigmoid(self.routing(pooled_inputs))
-        self.routing_weights_cache = routing_weights  #.clone() TODO check Computational Graph
+        routing_weights_temp = torch.sigmoid(self.routing(pooled_inputs))
+        self.routing_weights_cache = routing_weights_temp 
+        routing_weights = F.avg_pool1d(routing_weights_temp, kernel_size=self.interm_d // self.num_experts, stride=self.interm_d // self.num_experts) 
         x = self.cond_conv(x, routing_weights)
         return x
 

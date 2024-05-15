@@ -23,10 +23,9 @@ class newkd(BaseDistiller):
         for name, operator in student.named_modules():
             if 'moe' in name:
                 if hasattr(operator, 'routing_weights_cache'):
-                    #moe_position_list.append(name)
-                    #routing_list.append(operator.routing_weights_cache)
                     new_name = name.replace('.','_')
-                    projector = nn.Linear(self.args.num_classes, self.args.num_expert, bias=True) #方向为教师logit->路由,尽量减少映射层数
+                    #projector = nn.Linear(self.args.num_classes, self.args.num_expert, bias=True) #方向为教师logit->路由,尽量减少映射层数
+                    projector = nn.Linear(256, self.args.num_classes, bias=True) # TODO pass args.intermediate dimension
                     set_module_dict(self.projector, new_name, projector) #将stage和卷积映射层记录到self.projector字典中
                
 
@@ -40,20 +39,28 @@ class newkd(BaseDistiller):
         logits_student = self.student(image)
         
         route_student_losses = []        
+        route_student_cache = []  #debug
         for name, operator in self.student.named_modules():
             if 'moe' in name:
                 if hasattr(operator, 'routing_weights_cache'):
-                    #moe_position_list.append(name)
-                    #routing_list.append(operator.routing_weights_cache)
                     new_name = name.replace('.','_')
+                    '''
                     weights_teacher = get_module_dict(self.projector, new_name)(logits_teacher) #将logit交给对应位置的projector处理，输出1*num_expert tensor
                     route_student_losses.append( routing_loss( operator.routing_weights_cache,weights_teacher ) )#TODO pass args.moe_temperature
+                    route_student_cache.append(operator.routing_weights_cache) #debug
+                    '''
+                    temp_a = operator.routing_weights_cache.shape
+                    temp_b = logits_teacher.shape
+                    logits_route = get_module_dict(self.projector, new_name)(operator.routing_weights_cache) #将logit交给对应位置的projector处理，输出1*num_expert tensor
+                    temp_c = logits_route.shape
+                    route_student_losses.append( routing_loss( logits_route,logits_teacher ) )#TODO pass args.moe_temperature
+                    route_student_cache.append(operator.routing_weights_cache) #debug
 
-        loss_kd = self.args.kd_loss_weight * dist_loss(logits_student, logits_teacher, self.args.dist_beta,
-                                                       self.args.dist_gamma, self.args.dist_tau)
-        #loss_kd = self.args.newkd_kd_loss * kd_loss(logits_student, logits_teacher, self.args.kd_temperature) #TODO pass args.moe_temperature
+        #loss_kd = self.args.kd_loss_weight * dist_loss(logits_student, logits_teacher, self.args.dist_beta,
+        #                                               self.args.dist_gamma, self.args.dist_tau)
+        loss_kd = self.args.newkd_kd_loss * kd_loss(logits_student, logits_teacher, self.args.kd_temperature) #TODO pass args.moe_temperature
         loss_gt = self.args.newkd_gt_loss * self.criterion(logits_student, label)
-        loss_route = self.args.newkd_routing_loss * torch.mean(sum(route_student_losses))
+        loss_route = self.args.newkd_routing_loss * torch.mean(sum(route_student_losses))  
 
         losses_dict = {
             "loss_kd": loss_kd,

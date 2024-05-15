@@ -14,13 +14,13 @@ from functools import partial
 
 __all__ = ['MobileNetV1_moe', 'mobilenetv1_moe']
 
-
+'''
 class DynamicConv(nn.Module):
     """ Dynamic Conv layer 
         to replace the normal Conv2d in relevant method of model class
     """
     def __init__(self, in_features, out_features, kernel_size=1, stride=1, padding='', dilation=1,
-                 groups=1, bias=False, num_experts=8):
+                 groups=1, bias=False, num_experts=4):
         super().__init__()
         print('+++', num_experts)
         self.routing = nn.Linear(in_features, num_experts)
@@ -32,7 +32,28 @@ class DynamicConv(nn.Module):
         routing_weights = torch.sigmoid(self.routing(pooled_inputs))
         x = self.cond_conv(x, routing_weights)
         return x    #, routing_weights
+'''
 
+
+class DynamicConv(nn.Module): #only repalce conv1x1
+    """ Dynamic Conv layer 
+        to selective replace the normal Conv2d in relevant method of model class
+    """
+    def __init__(self, in_features, out_features, kernel_size, stride=1, padding='', dilation=1,
+                 groups=1, bias=False, num_experts=4):
+        super().__init__()
+        print('+++', num_experts)
+        self.routing = nn.Linear(in_features, num_experts)
+        self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
+                 groups, bias, num_experts)
+        self.routing_weights_cache = 0
+        
+    def forward(self, x):
+        pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
+        routing_weights = torch.sigmoid(self.routing(pooled_inputs))
+        self.routing_weights_cache = routing_weights  #.clone() TODO check Computational Graph
+        x = self.cond_conv(x, routing_weights)
+        return x
 
 
 class MobileNetV1_moe(nn.Module):
@@ -56,7 +77,7 @@ class MobileNetV1_moe(nn.Module):
                 nn.ReLU(inplace=True),
             )
 
-        def conv_dw_moe(inp, oup, stride, num_expert=8):
+        def conv_dw_moe(inp, oup, stride):
             return nn.Sequential(
                 DynamicConv(inp, inp, 3, stride, 1, groups=inp, bias=False),
                 nn.BatchNorm2d(inp),

@@ -19,7 +19,7 @@ __all__ = ['MobileNetV1', 'mobilenetv1']
 
 
 class MobileNetV1(nn.Module):
-    def __init__(self, num_classes=1000):
+    def __init__(self, pretrained_cfg=None, num_classes=1000):
         super(MobileNetV1, self).__init__()
 
         def conv_bn(inp, oup, stride):
@@ -51,10 +51,10 @@ class MobileNetV1(nn.Module):
             conv_dw(512, 512, 1),
             conv_dw(512, 512, 1),
             conv_dw(512, 512, 1),
-            conv_dw(512, 512, 1), #11
+            conv_dw(512, 512, 1), #12
             conv_dw(512, 1024, 2),
-            conv_dw(1024, 1024, 1), #13
-            nn.AvgPool2d(7),    #14
+            conv_dw(1024, 1024, 1), #14
+            nn.AvgPool2d(7),    #15
         )
         self.fc = nn.Linear(1024, num_classes)
 
@@ -71,6 +71,6 @@ class MobileNetV1(nn.Module):
 
 @register_model
 def mobilenetv1(pretrained=False, **kwargs):
-    model = MobileNetV1()
+    model = MobileNetV1(**kwargs)
     model.default_cfg = {'architecture': 'mobilenetv1'}
     return model

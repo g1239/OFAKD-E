@@ -1,0 +1,13 @@
+epochs: 150
+batch_size: 256
+lr: 0.01
+min_lr: 1e-3
+opt: sgd
+weight_decay: 1e-4
+sched: cosine
+warmup_epochs: 3
+color_jitter: 0.4
+smoothing: 0.1
+mixup: 0.8
+cutmix: 1.0
+aa: rand-m9-mstd0.5-inc1

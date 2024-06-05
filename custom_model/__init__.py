@@ -6,3 +6,4 @@ from .swin_transformer import *
 from .vip import *
 from .mobilenetv1_moe import *
 from .resnet_moe import *
+from .resnetv1_5 import *

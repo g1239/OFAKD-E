@@ -10,22 +10,23 @@
             "name": "Python 调试程序: 包含参数的当前文件",
             "type": "debugpy",
             "request": "launch",
-            "program": "/wzy/KD-engine/train.py",
+            "program": "/wzy/KD-engine/train-dev.py",
             "console": "integratedTerminal",
             "args": [
             
             "/Transfer/wzy/dataset/cifar100",
             "--dataset", "cifar100",
-            
+            "--num-classes", "100",
             "--config", "./configs/cifar/cnn-test.yaml",
-            "--model", "resnet18_moe",
-            "--teacher", "resnet152",
-            "--teacher-pretrained", "/wzy/cache/checkpoint/resnet/resnet152-b121ed2d.pth",
+            "--model", "mobilenetv1_moe",
+            "--teacher", "resnet50",
+            "--teacher-pretrained", "/wzy/output/finetune/resnet50-4/checkpoint/checkpoint-145.pth.tar",
             "--distiller", "newkd",
+            "--newkd-routing-loss", "0.5",
             "--kd-temperature", "4",
             "--batch-size", "128",
             "--native-amp", 
-            "--experiment", "test-9"
+            "--experiment", "debug-32"
 
            
         ]

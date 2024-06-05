@@ -22,28 +22,38 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 from timm.models.layers import CondConv2d
-class DynamicConv(nn.Module): #only repalce conv1x1
+class DynamicConv(nn.Module): 
     """ Dynamic Conv layer 
         to selective replace the normal Conv2d in relevant method of model class
     """
     def __init__(self, in_features, out_features, kernel_size, stride=1, padding='', dilation=1,
-                 groups=1, bias=False, num_experts=4):
+                 groups=1, bias=False, num_experts=8):
         super().__init__()
         print('+++', num_experts)
         self.num_experts = num_experts
         #self.routing = nn.Linear(in_features, num_experts)
-        self.interm_d = 256
-        self.routing = nn.Linear(in_features, self.interm_d)
+        self.interm_d = 64
+        self.interm_d2 = 64
+        self.proj1 = nn.Linear(in_features, self.interm_d)
+        self.proj2 = nn.Linear(in_features, self.interm_d2)
         #self.avg_pool = F.avg_pool1d(_ , kernel_size=self.interm_d // num_experts , stride=self.interm_d // num_experts)  # (self.interm_d,here is 256) mod num_experts must be 0 !!! 
         self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
                  groups, bias, num_experts)
         self.routing_weights_cache = 0
         
-    def forward(self, x):
-        pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
-        routing_weights_temp = torch.sigmoid(self.routing(pooled_inputs))
-        self.routing_weights_cache = routing_weights_temp 
-        routing_weights = F.avg_pool1d(routing_weights_temp, kernel_size=self.interm_d // self.num_experts, stride=self.interm_d // self.num_experts) 
+    def forward(self, x): # CondConv routing
+        pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  
+        new_pooled_inputs = pooled_inputs.detach()
+        new_pooled_inputs.requires_grad_()
+
+        routing_weights_temp = torch.sigmoid(self.proj1(pooled_inputs))
+        #self.routing_weights_cache = routing_weights_temp # only pass self.routing_weights_cache to distiller
+
+        routing_weights_temp2 = torch.sigmoid(self.proj2(new_pooled_inputs))
+        self.routing_weights_cache = routing_weights_temp2 # only pass self.routing_weights_cache to distiller
+
+        routing_weights = (0.95 * F.avg_pool1d((routing_weights_temp), kernel_size=self.interm_d // self.num_experts, stride=self.interm_d // self.num_experts)
+                           + 0.05 * F.avg_pool1d((routing_weights_temp2), kernel_size=self.interm_d2 // self.num_experts, stride=self.interm_d2 // self.num_experts))
         x = self.cond_conv(x, routing_weights)
         return x
 
@@ -107,19 +117,15 @@ class BasicMoEBlock(nn.Module):
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
-        self.routing_weights_conv1 = 0
-        self.routing_weights_conv2 = 0
 
     def forward(self, x):
         identity = x
 
         out = self.moe_conv1(x)
-        self.routing_weights_conv1=self.moe_conv1.routing_weights_cache
         out = self.bn1(out)
         out = self.relu(out)
         
         out = self.moe_conv2(out)
-        self.routing_weights_conv2=self.moe_conv2.routing_weights_cache
         out = self.bn2(out)
 
         if self.downsample is not None:
@@ -130,8 +136,6 @@ class BasicMoEBlock(nn.Module):
 
         return out
     
-    def get_routing_weights(self):
-        return (self.routing_weights_conv1,self.routing_weights_conv2)
 
 class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)

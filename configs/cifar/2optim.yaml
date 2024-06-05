@@ -1,0 +1,11 @@
+epochs: 360
+batch_size: 256
+lr: 0.05
+min_lr: 1e-4
+opt: sgd
+weight_decay: 2e-3
+sched: cosine
+warmup_epochs: 5
+color_jitter: 0
+smoothing: 0.1
+newkd_routing_loss: 0.05

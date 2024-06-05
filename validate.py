@@ -124,7 +124,8 @@ parser.add_argument('--real-labels', default='', type=str, metavar='FILENAME',
 parser.add_argument('--valid-labels', default='', type=str, metavar='FILENAME',
                     help='Valid label indices txt file for validation of partial label space')
 
-
+visible_devices = "3"  # 指定显卡
+os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 def validate(args):
     # might as well try to validate something
     args.pretrained = args.pretrained or not args.checkpoint

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .utils import load_state_dict_from_url
+#from .utils import load_state_dict_from_url
 from timm.models.registry import register_model
 
 __all__ = ['ResNetv1_5', 'resnet18v1_5', 'resnet34v1_5', 'resnet50v1_5', 'resnet101v1_5',
@@ -108,12 +108,12 @@ class Bottleneck(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
+class ResNetv1_5(nn.Module):
 
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
-        super(ResNet, self).__init__()
+        super(ResNetv1_5, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -208,15 +208,18 @@ class ResNet(nn.Module):
 
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
-    model = ResNet(block, layers, **kwargs)
-    if pretrained:
+    model = ResNetv1_5(block, layers, **kwargs)
+    '''
+        if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
         model.load_state_dict(state_dict)
+    '''
+    #FIXME try to get load pth from url
     return model
 
 @register_model
-def resnet18v1_5(pretrained=False, progress=True, **kwargs):
+def resnet18v1_5(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -228,7 +231,7 @@ def resnet18v1_5(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 @register_model
-def resnet34v1_5(pretrained=False, progress=True, **kwargs):
+def resnet34v1_5(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
     r"""ResNet-34 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -240,7 +243,7 @@ def resnet34v1_5(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 @register_model
-def resnet5v1_5(pretrained=False, progress=True, **kwargs):
+def resnet50v1_5(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -252,7 +255,7 @@ def resnet5v1_5(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 @register_model
-def resnet101v1_5(pretrained=False, progress=True, **kwargs):
+def resnet101v1_5(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
     r"""ResNet-101 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -264,7 +267,7 @@ def resnet101v1_5(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 @register_model
-def resnet152v1_5(pretrained=False, progress=True, **kwargs):
+def resnet152v1_5(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
     return _resnet('resnet15v1_5', Bottleneck, [3, 8, 36, 3], pretrained, progress,
                    **kwargs)
 

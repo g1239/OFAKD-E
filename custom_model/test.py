@@ -58,7 +58,7 @@ class MobileNetV3(nn.Module):
 
 
 @register_model
-def mobilenetv3(pretrained=False, **kwargs):
-    model = MobileNetV3()
+def mobilenetv3(pretrained=False, *args, **kwargs):
+    model = MobileNetV3(args)
     model.default_cfg = {'architecture': 'mobilenetv3'}
     return model

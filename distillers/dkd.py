@@ -11,6 +11,9 @@ class DKD(BaseDistiller):
 
     def __init__(self, student, teacher, criterion, args, **kwargs):
         super(DKD, self).__init__(student, teacher, criterion, args)
+        self.dkd_alpha = 1
+        self.dkd_beta = 2
+        self.dkd_temperature =1
 
     def forward(self, image, label, *args, **kwargs):
         with torch.no_grad():

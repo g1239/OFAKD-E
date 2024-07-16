@@ -8,4 +8,5 @@ from .kd import BKD, KD
 from .ofa import OFA
 from .rkd import RKD
 from .newkd import newkd
+from .newkd_dev import newkd_dev
 from .registry import get_distiller

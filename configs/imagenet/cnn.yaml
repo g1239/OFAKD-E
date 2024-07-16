@@ -6,6 +6,6 @@ opt: sgd
 weight_decay: 1e-4
 sched: step
 decay_epochs: 30
-warmup_epochs: 3
+warmup_epochs: 5
 color_jitter: 0
 smoothing: 0.1

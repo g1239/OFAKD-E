@@ -551,7 +551,7 @@ def main():
     params_student_part2 = [param for name, param in model.named_parameters() if name in module_routing_part2]
 
     optimizer1 = create_optimizer_v2(distiller, **optimizer_kwargs(cfg=args))
-    optimizer2 = create_optimizer_v2(params_student_part1 + params_student_part2, **optimizer_kwargs(cfg=args))
+    optimizer2 = create_optimizer_v2(params_student_part1 + params_student_part2, **optimizer_kwargs(cfg=args)) #FIXME
 
     # setup automatic mixed-precision (AMP) loss scaling and op casting
     amp_autocast = suppress  # do nothing
@@ -819,8 +819,12 @@ def train_one_epoch(
 
             output, losses_dict = distiller(input, target, *additional_input, epoch=epoch)
             #loss = sum(losses_dict.values())
-            loss = sum(value for key,value in losses_dict.items() if key != "loss_route")
-            loss2 = sum(value for key,value in losses_dict.items() if key == "loss_route")
+           
+            if batch_idx > 50 and batch_idx % 20 != 0 :  
+                loss = sum(value for key,value in losses_dict.items() if key != "loss_route")
+            else:
+                loss = sum(value for key,value in losses_dict.items())
+            #loss2 = sum(value for key,value in losses_dict.items() if key == "loss_route")
         
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
@@ -828,24 +832,24 @@ def train_one_epoch(
                 losses_m_dict[k].update(losses_dict[k].item(), input.size(0))
 
         optimizer1.zero_grad()
-        optimizer2.zero_grad()
-        if batch_idx % 5 != 0:
-            if loss_scaler is not None:
-                loss_scaler(
-                    loss, optimizer1,
-                    clip_grad=args.clip_grad, clip_mode=args.clip_mode,
-                    parameters=model_parameters(distiller, exclude_head='agc' in args.clip_mode),
-                    create_graph=second_order)
-            else:
-                loss.backward(create_graph=second_order)
-                if args.clip_grad is not None:
-                    dispatch_clip_grad(
-                        model_parameters(distiller, exclude_head='agc' in args.clip_mode),
-                        value=args.clip_grad, mode=args.clip_mode)
-                optimizer1.step()
-        else:     
-            loss2.backward()
-            optimizer2.step()
+        #optimizer2.zero_grad()
+        #if batch_idx % 5 != 0:
+        if loss_scaler is not None:
+            loss_scaler(
+                loss, optimizer1,
+                clip_grad=args.clip_grad, clip_mode=args.clip_mode,
+                parameters=model_parameters(distiller, exclude_head='agc' in args.clip_mode),
+                create_graph=second_order)
+        else:
+            loss.backward(create_graph=second_order)
+            if args.clip_grad is not None:
+                dispatch_clip_grad(
+                    model_parameters(distiller, exclude_head='agc' in args.clip_mode),
+                    value=args.clip_grad, mode=args.clip_mode)
+            optimizer1.step()
+        #else:     
+            #loss2.backward()
+            #optimizer2.step()
 
 
         if model_emas is not None:

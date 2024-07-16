@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from timm.models.layers import _assert, trunc_normal_
-
+import math
 
 class PatchMerging(nn.Module):
     def __init__(self, input_resolution, dim, out_dim=None, norm_layer=nn.LayerNorm, act_layer=nn.Identity):
@@ -154,6 +154,7 @@ def init_weights(module):
             nn.init.zeros_(m.bias)
         elif isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
+            #nn.init.kaiming_uniform_(m.weight, a=math.sqrt(5))
             if m.bias is not None:
                 nn.init.zeros_(m.bias)
 

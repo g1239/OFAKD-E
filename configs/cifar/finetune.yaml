@@ -1,4 +1,4 @@
-epochs: 150
+epochs: 50
 batch_size: 256
 lr: 0.01
 min_lr: 1e-3

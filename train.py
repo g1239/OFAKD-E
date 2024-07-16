@@ -581,7 +581,7 @@ def main():
         else:
             if args.rank == 0:
                 _logger.info("Using native Torch DistributedDataParallel.")
-            distiller = NativeDDP(distiller, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
+            distiller = NativeDDP(distiller, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb,find_unused_parameters=False) 
         # NOTE: EMA model does not need to be wrapped by DDP
 
     # setup learning rate schedule and starting epoch

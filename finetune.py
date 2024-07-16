@@ -334,7 +334,7 @@ def _parse_args():
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     return args, args_text
 
-visible_devices = "0,1,2,3"  # 指定显卡
+visible_devices = "0,1,2"  # 指定显卡
 os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 def main():
     setup_default_logging(log_path='train.log')

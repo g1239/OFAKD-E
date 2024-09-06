@@ -8,7 +8,7 @@ visible_devices = "3"  # limit visible GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 
 model = create_model(
-    'resnet50',
+    'resnet10_moe',
     pretrained=False,
     num_classes=100,
     #in_chans=3,

@@ -61,6 +61,7 @@ except AttributeError:
     pass
 
 torch.backends.cudnn.benchmark = True
+torch.autograd.set_detect_anomaly(True)
 _logger = logging.getLogger('train')
 
 # The first arg parser parses out only the --config argument, this argument is used to
@@ -74,7 +75,7 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 # ------------------------------------- My params ---------------------------------------
 # Basic parameters
 parser.add_argument('--model', default='resnet18', type=str)
-parser.add_argument('--teacher', default='deit_tiny_patch16_224', type=str)
+parser.add_argument('--teacher', default=None, type=str)
 parser.add_argument('--teacher-pretrained', default='', type=str)
 parser.add_argument('--use-ema-teacher', action='store_true')
 
@@ -130,7 +131,7 @@ parser.add_argument('--num_expert', default=4, type=int)  # number of expert
 # Misc
 parser.add_argument('--speedtest', action='store_true')
 
-parser.add_argument('--eval-interval', default=1, type=int)  # eval every 1 epochs before epochs * eval_interval_end
+parser.add_argument('--eval-interval', default=5, type=int)  # eval every 1 epochs before epochs * eval_interval_end
 parser.add_argument('--eval-interval-end', default=0.75, type=float)
 # ---------------------------------------------------------------------------------------
 
@@ -322,10 +323,10 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
-parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
+parser.add_argument('--checkpoint-hist', type=int, default=5, metavar='N',
                     help='number of checkpoints to keep (default: 10)')
-parser.add_argument('-j', '--workers', type=int, default=8, metavar='N',
-                    help='how many training processes to use (default: 8)')
+parser.add_argument('-j', '--workers', type=int, default=12, metavar='N',
+                    help='how many training processes to use (default: 12)')
 parser.add_argument('--save-images', action='store_true', default=False,
                     help='save images of input bathes every log interval for debugging')
 parser.add_argument('--amp', action='store_true', default=False,
@@ -370,7 +371,7 @@ def _parse_args():
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     return args, args_text
 
-visible_devices = "0,1,2"  # 指定显卡
+visible_devices = "3"  # 指定显卡
 os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 def main():
     setup_default_logging(log_path='train.log')
@@ -420,7 +421,7 @@ def main():
 
     random_seed(args.seed, args.rank)
 
-    Distiller = get_distiller(args.distiller)   #返回值格式为<class 'distillers.kd.KD'>
+    Distiller = get_distiller(args.distiller)   #return <class 'distillers.kd.KD'>
 
     model = create_model(
         args.model,
@@ -532,7 +533,7 @@ def main():
         train_loss_fn = nn.CrossEntropyLoss()
     validate_loss_fn = nn.CrossEntropyLoss().cuda()
 
-    distiller = Distiller(model, teacher=teacher, criterion=train_loss_fn, args=args, num_data=len(dataset_train)) # TODO add auxiliary loss
+    distiller = Distiller(model, teacher=teacher, criterion=train_loss_fn, args=args, num_data=len(dataset_train)) 
     student_params, extra_params = distiller.get_learnable_parameters()
     if args.rank == 0:
         _logger.info(f'\n-------------------------------'

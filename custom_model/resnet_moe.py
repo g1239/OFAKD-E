@@ -5,10 +5,10 @@ base on https://github.com/pytorch/vision/blob/6db1569c89094cf23f3bc41f79275c45e
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.registry import register_model
+from timm.models.registry import register_model # type: ignore
 
 __all__ = ['resnet18_moe', 'resnet34_moe', 'resnet50_moe', 'resnet101_moe',
-           'resnet152_moe']
+           'resnet152_moe','resnet10','ResNet_moe']
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -21,42 +21,75 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-from timm.models.layers import CondConv2d
+from timm.models.layers import CondConv2d # type: ignore
 class DynamicConv(nn.Module): 
     """ Dynamic Conv layer 
         to selective replace the normal Conv2d in relevant method of model class
     """
+    
     def __init__(self, in_features, out_features, kernel_size, stride=1, padding='', dilation=1,
                  groups=1, bias=False, num_experts=8):
         super().__init__()
         print('+++', num_experts)
         self.num_experts = num_experts
         #self.routing = nn.Linear(in_features, num_experts)
-        self.interm_d = 64
-        self.interm_d2 = 64
+        self.interm_d = 8
         self.proj1 = nn.Linear(in_features, self.interm_d)
-        self.proj2 = nn.Linear(in_features, self.interm_d2)
+        #self.avg_pool = F.avg_pool1d(_ , kernel_size=self.interm_d // num_experts , stride=self.interm_d // num_experts)  # (self.interm_d,here is 256) mod num_experts must be 0 !!! 
+        self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
+                 groups, bias, num_experts)
+        self.rwc = 0 #routing_weights_cache
+        
+    def forward(self, x): # CondConv routing
+        
+        #routing_weights_temp =  torch.sigmoid(self.proj1( F.adaptive_avg_pool2d(x, 1).flatten(1) ))
+        #self.rwc = routing_weights_temp # pass self.routing_weights_cache to distiller
+        
+        #x = self.cond_conv(x, routing_weights_temp) #FIXME
+
+
+        p = F.adaptive_avg_pool2d(x, 1).flatten(1)   #pooled_inputs
+        p1 = p.clone().detach() 
+        rw = torch.sigmoid(self.proj1(p)) # routing_weights_temp 
+        rw1 = torch.sigmoid(self.proj1(p1))
+        self.rwc = rw1 
+
+        x = self.cond_conv(x, rw)
+        return x
+    """    
+    def __init__(self, in_features, out_features, kernel_size, stride=1, padding='', dilation=1,
+                 groups=1, bias=False, num_experts=8):
+        super().__init__()
+        print('+++', num_experts)
+        self.num_experts = num_experts
+        #self.routing = nn.Linear(in_features, num_experts)
+        interm_d = int(in_features / 4) 
+        self.proj1 = nn.Linear(in_features, interm_d)
+        self.proj2 = nn.Linear(interm_d,num_experts)
         #self.avg_pool = F.avg_pool1d(_ , kernel_size=self.interm_d // num_experts , stride=self.interm_d // num_experts)  # (self.interm_d,here is 256) mod num_experts must be 0 !!! 
         self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
                  groups, bias, num_experts)
         self.routing_weights_cache = 0
         
     def forward(self, x): # CondConv routing
-        pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  
-        new_pooled_inputs = pooled_inputs.detach()
-        new_pooled_inputs.requires_grad_()
+        #pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  
+        #routing_weights_temp = self.proj1(pooled_inputs)
+        #routing_weights_temp =  torch.sigmoid(self.proj1( F.adaptive_avg_pool2d(x, 1).flatten(1) ))
+        #self.routing_weights_cache = routing_weights_temp # pass self.routing_weights_cache to distiller
 
-        routing_weights_temp = torch.sigmoid(self.proj1(pooled_inputs))
-        #self.routing_weights_cache = routing_weights_temp # only pass self.routing_weights_cache to distiller
+        #routing_weights = torch.sigmoid(routing_weights_temp)
+        #
+        #x = self.cond_conv(x, routing_weights_temp) #FIXME
 
-        routing_weights_temp2 = torch.sigmoid(self.proj2(new_pooled_inputs))
-        self.routing_weights_cache = routing_weights_temp2 # only pass self.routing_weights_cache to distiller
-
-        routing_weights = (0.95 * F.avg_pool1d((routing_weights_temp), kernel_size=self.interm_d // self.num_experts, stride=self.interm_d // self.num_experts)
-                           + 0.05 * F.avg_pool1d((routing_weights_temp2), kernel_size=self.interm_d2 // self.num_experts, stride=self.interm_d2 // self.num_experts))
-        x = self.cond_conv(x, routing_weights)
+        w = F.adaptive_avg_pool2d(x, 1).flatten(1)
+        w = self.proj1(w)
+        w = F.relu(w)
+        w = torch.sigmoid(self.proj2(w))
+        self.routing_weights_cache = w
+        x = self.cond_conv(x, w)
+    
         return x
-
+    """
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -345,8 +378,30 @@ def _resnet(arch, denseblock, moeblock, layers, pretrained, progress, **kwargs):
     return model
 
 @register_model
+def resnet10(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
+    model =_resnet('resnet10', BasicBlock, BasicBlock, [1, 1, 1, 1], pretrained, progress,
+                   **kwargs)
+    model.default_cfg = {'architecture': 'resnet10'}
+    return model
+
+@register_model
+def resnet19(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
+    model =_resnet('resnet19', BasicBlock, BasicBlock, [2, 2, 2, 2], pretrained, progress,
+                   **kwargs)
+    model.default_cfg = {'architecture': 'resnet19'}
+    return model
+
+@register_model
+def resnet10_moe(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
+    model =_resnet('resnet10_moe', BasicMoEBlock, BasicMoEBlock, [1, 1, 1, 1], pretrained, progress,
+                   **kwargs)
+    model.default_cfg = {'architecture': 'resnet10_moe'}
+    return model
+    
+
+@register_model
 def resnet18_moe(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
-    model =_resnet('resnet18_moe', BasicBlock, BasicMoEBlock, [2, 2, 2, 2], pretrained, progress,
+    model =_resnet('resnet18_moe', BasicMoEBlock, BasicMoEBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
     model.default_cfg = {'architecture': 'resnet18_moe'}
     return model

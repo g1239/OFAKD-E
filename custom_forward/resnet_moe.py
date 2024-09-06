@@ -1,45 +1,105 @@
-from custom_model import resnet_moe
+from custom_model import ResNet_moe
 
 from .registry import register_method
+import torch
 
-_target_class = resnet_moe
-
+_target_class = ResNet_moe
+'''
 @register_method
-def forward_backbone(self, x, require_route):
-    routing_list = []
+def forward_features(self, x, requires_feat):
+    feat = []
     x = self.conv1(x)
     x = self.bn1(x)
     x = self.relu(x)
     x = self.maxpool(x)
 
     x = self.layer1(x)
+    feat.append(x)
     x = self.layer2(x)
+    feat.append(x)
     x = self.layer3(x)
+    feat.append(x)
     x = self.layer4(x)
-
-    x = self.avgpool(x)
-    x = torch.flatten(x, 1)
-    x = self.fc(x)
-
-
-    for m in self.modules():
-        if hasattr(m, 'get_routing_weights'):
-            routing = m.get_routing_weights()
-            routing_list.append(routing)
-
-    return (x, routing_list) if require_route else x
-
+    feat.append(x)
+    
+    return (x, feat) if requires_feat else x
 
 @register_method
-def forward(self, x, require_route=False):
-    if requires_route:
-        x, route = self.forward_backbone(x, require_route=True)
-        return x, route
+def forward_head(self, x,  pre_logits: bool = False):
+    x = self.avgpool(x)
+    x = torch.flatten(x, 1)
+    return x if pre_logits else self.fc(x)
+
+@register_method
+def forward(self, x, requires_feat=False):
+    if requires_feat:  
+        x, feat = self.forward_features(x, requires_feat=True)
+        x = self.forward_head(x, pre_logits=True)
+        feat.append(x)
+        x = self.fc(x)
+        return x, feat
     else:
-        x = self.forward_backbone(x, require_route=False)                       
+        x = self.forward_features(x, requires_feat=False) 
+        x = self.forward_head(x)                         
         return x                                          
 
-
-
-
-
+@register_method
+def stage_info(self, stage):
+    if self.default_cfg['architecture'] == 'resnet18_moe':
+        if stage == 1:
+            index = 0
+            shape = (64, 56, 56) #输入通道数与特征图尺寸 —— C H W
+        elif stage == 2:
+            index = 1
+            shape = (128, 28, 28)
+        elif stage == 3:
+            index = 2
+            shape = (256, 14, 14)
+        elif stage == 4:
+            index = 3
+            shape = (512, 7, 7)
+        elif stage == -1:
+            index = -1
+            shape = 512
+        else:
+            raise RuntimeError(f'Stage {stage} out of range (1-4)')
+    elif self.default_cfg['architecture'] == 'resnet10_moe':
+        if stage == 1:
+            index = 0
+            shape = (64, 56, 56)
+        elif stage == 2:
+            index = 1
+            shape = (128, 28, 28)
+        elif stage == 3:
+            index = 2
+            shape = (256, 14, 14)
+        elif stage == 4:
+            index = 3
+            shape = (512, 7, 7)
+        elif stage == -1:
+            index = -1
+            shape = 512
+        else:
+            raise RuntimeError(f'Stage {stage} out of range (1-4)')
+    elif self.default_cfg['architecture'] == 'resnet10' or self.default_cfg['architecture'] == 'resnet19':
+        if stage == 1:
+            index = 0
+            shape = (64, 56, 56)
+        elif stage == 2:
+            index = 1
+            shape = (128, 28, 28)
+        elif stage == 3:
+            index = 2
+            shape = (256, 14, 14)
+        elif stage == 4:
+            index = 3
+            shape = (512, 7, 7)
+        elif stage == -1:
+            index = -1
+            shape = 512
+        else:
+            raise RuntimeError(f'Stage {stage} out of range (1-4)')
+    else:
+        raise NotImplementedError(f'undefined stage_info() for model {self.default_cfg["architecture"]}')
+    return index, shape
+'''

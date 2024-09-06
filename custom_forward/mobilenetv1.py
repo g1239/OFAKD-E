@@ -9,7 +9,7 @@ _target_class = MobileNetV1
 @register_method
 def forward(self, x, requires_feat=False):      
     feat = []
-    x = self.model[3][:-1](self.model[0:3](x))  #x经过前三层处理后输入到最后Relu的第四层的输出
+    x = self.model[3][:-1](self.model[0:3](x))  #x经过前三层处理后输入到除了最后Relu的第四层的输出
     feat.append(x)                              #用以提取未将负激活置零的中间特征
     x = self.model[5][:-1](self.model[4:5](F.relu(x)))
     feat.append(x)

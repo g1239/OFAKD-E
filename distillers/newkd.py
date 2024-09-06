@@ -17,20 +17,23 @@ class newkd(BaseDistiller):
 
         #assert is_cnn_model(student) , 'current newKD implementation only support cnn student models!'
 
-        self.projector = nn.ModuleDict()
+        self.projector_list = nn.ModuleDict()
+        self.operator_list = nn.ModuleDict()       
         self.num_projector = 0
         position = 0
         #moe_position_list = [] # distinguish each moe operator
         for operator in student.modules():
-            if hasattr(operator, 'routing_weights_cache'):
+            if hasattr(operator, 'rwc'):
                 #new_name = name.replace('.','_')
-                position +=1
+                position += 1
                 #projector = nn.Linear(64, self.args.num_classes, bias=True) # TODO pass args.intermediate dimension
-                projector = torch.nn.utils.parametrizations.orthogonal(nn.Linear(8, self.args.num_classes, bias=False) ,orthogonal_map='cayley') #orthogonal_map='matrix_exp'
+                #projector = torch.nn.utils.parametrizations.orthogonal(nn.Linear(8, self.args.num_classes, bias=False) ,orthogonal_map='cayley') #orthogonal_map='matrix_exp'
+                projector = nn.Linear(8, self.args.num_classes,  bias=False) 
                 nn.init.zeros_(projector.weight)
-                set_module_dict(self.projector, position, projector) #将stage和卷积映射层记录到self.projector字典中
-                self.num_projector = self.num_projector + 1
-
+                set_module_dict(self.projector_list, position, projector)
+                set_module_dict(self.operator_list, position, operator) #将stage和卷积映射层记录到self.projector字典中
+                
+        self.num_projector = position + 1  #FIXME
             #self.projector.apply(init_weights)
 
 
@@ -42,24 +45,24 @@ class newkd(BaseDistiller):
         logits_student = self.student(image)
         
         route_student_losses = [] 
-        position = 0       
-        for operator in self.student.modules():
-            if hasattr(operator, 'routing_weights_cache'):
-                #new_name = name.replace('.','_')
-                '''
-                weights_teacher = get_module_dict(self.projector, new_name)(logits_teacher) #将logit交给对应位置的projector处理，输出1*num_expert tensor
-                route_student_losses.append( routing_loss( operator.routing_weights_cache,weights_teacher ) )#TODO pass args.moe_temperature
-                route_student_cache.append(operator.routing_weights_cache) #debug
-                '''
-                position +=1
-                logits_route = get_module_dict(self.projector, position)(operator.routing_weights_cache) #将logit交给对应位置的projector处理，输出1*num_classes tensor
-                #route_student_losses.append( routing_loss( logits_route,logits_teacher ) )#TODO pass args.moe_temperature
-                route_student_losses.append(kd_loss(logits_teacher, logits_route, 0.8))#  add reverse KL divergence to stronger supervision
+        position = 0
+        for i in range(1,self.num_projector):
+            #new_name = name.replace('.','_')
+            '''
+            weights_teacher = get_module_dict(self.projector, new_name)(logits_teacher) #将logit交给对应位置的projector处理，输出1*num_expert tensor
+            route_student_losses.append( routing_loss( operator.routing_weights_cache,weights_teacher ) )#TODO pass args.moe_temperature
+            route_student_cache.append(operator.routing_weights_cache) #debug
+            '''
 
-        lossmask_ratio = 0 if epoch < 80 else 1
+            
+            logits_route = get_module_dict(self.projector_list, i)(get_module_dict(self.operator_list, i).rwc) #将logit交给对应位置的projector处理，输出1*num_classes tensor
+            #route_student_losses.append( routing_loss( logits_route,logits_teacher ) )#TODO pass args.moe_temperature
+            route_student_losses.append(kd_loss(logits_teacher, logits_route, 0.8))#  add reverse KL divergence to stronger supervision
+
+        lossmask_ratio = 0 if epoch < 10 else 1
         loss_kd = self.args.newkd_kd_loss * kd_loss(logits_student, logits_teacher, 1) #TODO pass args.moe_temperature
         loss_gt = self.args.newkd_gt_loss * self.criterion(logits_student, label)
-        loss_route = lossmask_ratio * self.args.newkd_routing_loss / self.num_projector * sum(route_student_losses)  #FIXME select the dim of mean op for safer loss calculation
+        loss_route = lossmask_ratio * self.args.newkd_routing_loss  * sum(route_student_losses)  #FIXME select the dim of mean op for safer loss calculation / self.num_projector
 
         #torch.set_printoptions(edgeitems=logits_teacher.numel())
         #print(logits_teacher)

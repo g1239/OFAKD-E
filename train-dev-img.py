@@ -74,7 +74,7 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 # ------------------------------------- My params ---------------------------------------
 # Basic parameters
 parser.add_argument('--model', default='resnet18', type=str)
-parser.add_argument('--teacher', default=None, type=str)
+parser.add_argument('--teacher', default='deit_tiny_patch16_224', type=str)
 parser.add_argument('--teacher-pretrained', default='', type=str)
 parser.add_argument('--use-ema-teacher', action='store_true')
 
@@ -130,7 +130,7 @@ parser.add_argument('--num_expert', default=4, type=int)  # number of expert
 # Misc
 parser.add_argument('--speedtest', action='store_true')
 
-parser.add_argument('--eval-interval', default=5, type=int)  # eval every 1 epochs before epochs * eval_interval_end
+parser.add_argument('--eval-interval', default=1, type=int)  # eval every 1 epochs before epochs * eval_interval_end
 parser.add_argument('--eval-interval-end', default=0.75, type=float)
 # ---------------------------------------------------------------------------------------
 
@@ -322,10 +322,10 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
-parser.add_argument('--checkpoint-hist', type=int, default=5, metavar='N',
+parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
                     help='number of checkpoints to keep (default: 10)')
-parser.add_argument('-j', '--workers', type=int, default=12, metavar='N',
-                    help='how many training processes to use (default: 12)')
+parser.add_argument('-j', '--workers', type=int, default=8, metavar='N',
+                    help='how many training processes to use (default: 8)')
 parser.add_argument('--save-images', action='store_true', default=False,
                     help='save images of input bathes every log interval for debugging')
 parser.add_argument('--amp', action='store_true', default=False,
@@ -370,7 +370,7 @@ def _parse_args():
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     return args, args_text
 
-visible_devices = "3"  # 指定显卡
+visible_devices = "0,1,2"  # 指定显卡
 os.environ["CUDA_VISIBLE_DEVICES"] = visible_devices
 def main():
     setup_default_logging(log_path='train.log')
@@ -420,7 +420,7 @@ def main():
 
     random_seed(args.seed, args.rank)
 
-    Distiller = get_distiller(args.distiller)   #return <class 'distillers.kd.KD'>
+    Distiller = get_distiller(args.distiller)   #返回值格式为<class 'distillers.kd.KD'>
 
     model = create_model(
         args.model,
@@ -532,7 +532,7 @@ def main():
         train_loss_fn = nn.CrossEntropyLoss()
     validate_loss_fn = nn.CrossEntropyLoss().cuda()
 
-    distiller = Distiller(model, teacher=teacher, criterion=train_loss_fn, args=args, num_data=len(dataset_train)) 
+    distiller = Distiller(model, teacher=teacher, criterion=train_loss_fn, args=args, num_data=len(dataset_train)) # TODO add auxiliary loss
     student_params, extra_params = distiller.get_learnable_parameters()
     if args.rank == 0:
         _logger.info(f'\n-------------------------------'
@@ -543,13 +543,21 @@ def main():
 
     distiller = distiller.cuda()
 
-    optimizer = create_optimizer_v2(distiller, **optimizer_kwargs(cfg=args))
+    # screen out the params needed by optimizer2
+    module_routing_part1 = [name for name, param in distiller.named_parameters() if "projector" in name]
+    module_routing_part2 = [name for name, ops in model.named_modules() if hasattr(ops, 'routing_weights_cache')]
+
+    params_student_part1 = [param for name, param in distiller.named_parameters() if name in module_routing_part1]
+    params_student_part2 = [param for name, param in model.named_parameters() if name in module_routing_part2]
+
+    optimizer1 = create_optimizer_v2(distiller, **optimizer_kwargs(cfg=args))
+    optimizer2 = create_optimizer_v2(params_student_part1 + params_student_part2, **optimizer_kwargs(cfg=args)) #FIXME
 
     # setup automatic mixed-precision (AMP) loss scaling and op casting
     amp_autocast = suppress  # do nothing
     loss_scaler = None
     if use_amp == 'apex':
-        distiller, optimizer = amp.initialize(distiller, optimizer, opt_level='O1')
+        distiller, optimizer1 = amp.initialize(distiller, optimizer1, opt_level='O1')
         loss_scaler = ApexScaler()
         if args.rank == 0:
             _logger.info('Using NVIDIA APEX AMP. Training in mixed precision.')
@@ -581,17 +589,21 @@ def main():
         else:
             if args.rank == 0:
                 _logger.info("Using native Torch DistributedDataParallel.")
-            distiller = NativeDDP(distiller, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb,find_unused_parameters=False) 
+            distiller = NativeDDP(distiller, device_ids=[args.local_rank], #broadcast_buffers=not args.no_ddp_bb,
+                                  broadcast_buffers=False,find_unused_parameters=True)#FIXME
         # NOTE: EMA model does not need to be wrapped by DDP
 
     # setup learning rate schedule and starting epoch
-    lr_scheduler, num_epochs = create_scheduler(args, optimizer)
+    lr_scheduler1, num_epochs = create_scheduler(args, optimizer1) #FIXME
+    lr_scheduler2, num_epochs = create_scheduler(args, optimizer2) 
     start_epoch = 0
     if args.start_epoch is not None:
         start_epoch = args.start_epoch
 
-    if lr_scheduler is not None and start_epoch > 0:
-        lr_scheduler.step(start_epoch)
+    if lr_scheduler1 is not None and start_epoch > 0: #FIXME
+        lr_scheduler1.step(start_epoch)
+    if lr_scheduler2 is not None and start_epoch > 0:
+        lr_scheduler2.step(start_epoch)    
 
     if args.rank == 0:
         _logger.info('Scheduled epochs: {}'.format(num_epochs))
@@ -685,7 +697,7 @@ def main():
         saver_dir = os.path.join(output_dir, 'checkpoint')
         os.makedirs(saver_dir)
         saver = CheckpointSaver(
-            model=model, optimizer=optimizer, args=args, amp_scaler=loss_scaler,
+            model=model, optimizer=optimizer1, args=args, amp_scaler=loss_scaler, #FIXME
             checkpoint_dir=saver_dir, recovery_dir=saver_dir, decreasing=decreasing,
             max_history=args.checkpoint_hist)
 
@@ -695,7 +707,7 @@ def main():
                 ema_saver_dir = os.path.join(output_dir, f'ema{decay}_checkpoint')
                 os.makedirs(ema_saver_dir)
                 ema_saver = CheckpointSaver(
-                    model=model, optimizer=optimizer, args=args, model_ema=ema, amp_scaler=loss_scaler,
+                    model=model, optimizer=optimizer1, args=args, model_ema=ema, amp_scaler=loss_scaler,#FIXME
                     checkpoint_dir=ema_saver_dir, recovery_dir=ema_saver_dir, decreasing=decreasing,
                     max_history=args.checkpoint_hist)
                 ema_savers.append(ema_saver)
@@ -710,8 +722,8 @@ def main():
                 loader_train.sampler.set_epoch(epoch)
 
             train_metrics = train_one_epoch(
-                epoch, distiller, loader_train, optimizer, args,
-                lr_scheduler=lr_scheduler, saver=saver, output_dir=output_dir,
+                epoch, distiller, loader_train, optimizer1, optimizer2, args,
+                lr_scheduler=lr_scheduler1, saver=saver, output_dir=output_dir,
                 amp_autocast=amp_autocast, loss_scaler=loss_scaler, model_emas=model_emas, mixup_fn=mixup_fn)
 
             if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
@@ -747,9 +759,12 @@ def main():
                         epoch, train_metrics, eval_metrics, os.path.join(output_dir, 'summary.csv'),
                         write_header=best_metric is None)
 
-            if lr_scheduler is not None:
+            if lr_scheduler1 is not None:    #FIXME
                 # step LR for next epoch
-                lr_scheduler.step(epoch + 1, eval_metrics[eval_metric])
+                lr_scheduler1.step(epoch + 1, eval_metrics[eval_metric])
+            if lr_scheduler2 is not None:
+                # step LR for next epoch
+                lr_scheduler2.step(epoch + 1, eval_metrics[eval_metric])
 
             tp.update()
             if args.rank == 0:
@@ -767,7 +782,7 @@ def main():
 
 
 def train_one_epoch(
-        epoch, distiller, loader, optimizer, args,
+        epoch, distiller, loader, optimizer1, optimizer2, args,
         lr_scheduler=None, saver=None, output_dir=None, amp_autocast=suppress,
         loss_scaler=None, model_emas=None, mixup_fn=None):
     if args.mixup_off_epoch and epoch >= args.mixup_off_epoch:
@@ -776,7 +791,7 @@ def train_one_epoch(
         elif mixup_fn is not None:
             mixup_fn.mixup_enabled = False
 
-    second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
+    second_order = hasattr(optimizer1, 'is_second_order') and optimizer1.is_second_order
     batch_time_m = AverageMeter()
     data_time_m = AverageMeter()
     losses_m = AverageMeter()
@@ -803,17 +818,25 @@ def train_one_epoch(
         with amp_autocast():
 
             output, losses_dict = distiller(input, target, *additional_input, epoch=epoch)
-            loss = sum(losses_dict.values())
-
+            #loss = sum(losses_dict.values())
+           
+            if batch_idx > 20 and batch_idx % 10 != 0 :  
+                loss = sum(value for key,value in losses_dict.items() if key != "loss_route")
+            else:
+                loss = sum(value for key,value in losses_dict.items())
+            #loss2 = sum(value for key,value in losses_dict.items() if key == "loss_route")
+        
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
             for k in losses_dict:
                 losses_m_dict[k].update(losses_dict[k].item(), input.size(0))
 
-        optimizer.zero_grad()
+        optimizer1.zero_grad()
+        #optimizer2.zero_grad()
+        #if batch_idx % 5 != 0:
         if loss_scaler is not None:
             loss_scaler(
-                loss, optimizer,
+                loss, optimizer1,
                 clip_grad=args.clip_grad, clip_mode=args.clip_mode,
                 parameters=model_parameters(distiller, exclude_head='agc' in args.clip_mode),
                 create_graph=second_order)
@@ -823,7 +846,11 @@ def train_one_epoch(
                 dispatch_clip_grad(
                     model_parameters(distiller, exclude_head='agc' in args.clip_mode),
                     value=args.clip_grad, mode=args.clip_mode)
-            optimizer.step()
+            optimizer1.step()
+        #else:     
+            #loss2.backward()
+            #optimizer2.step()
+
 
         if model_emas is not None:
             for ema, _ in model_emas:
@@ -836,8 +863,10 @@ def train_one_epoch(
         num_updates += 1
         batch_time_m.update(time.time() - end)
         if last_batch or batch_idx % args.log_interval == 0:
-            lrl = [param_group['lr'] for param_group in optimizer.param_groups]
+            lrl = [param_group['lr'] for param_group in optimizer1.param_groups] #FIXME
             lr = sum(lrl) / len(lrl)
+            lrl2 = [param_group['lr'] for param_group in optimizer2.param_groups]
+            lr2 = sum(lrl2) / len(lrl2)
 
             if args.distributed:
                 reduced_loss = reduce_tensor(loss.data, args.world_size)
@@ -887,8 +916,10 @@ def train_one_epoch(
         end = time.time()
         # end for
 
-    if hasattr(optimizer, 'sync_lookahead'):
-        optimizer.sync_lookahead()
+    if hasattr(optimizer1, 'sync_lookahead'): #FIXME
+        optimizer1.sync_lookahead()
+    if hasattr(optimizer2, 'sync_lookahead'):
+        optimizer2.sync_lookahead()
 
     return OrderedDict([('loss', losses_m.avg)])
 

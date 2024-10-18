@@ -8,9 +8,9 @@ sched: cosine
 warmup_epochs: 5
 color_jitter: 0
 smoothing: 0.1
-newkd_gt_loss: 1
-newkd_kd_loss: 1
-newkd_routing_loss: 0.5
+newkd_gt_loss: 0.5
+newkd_kd_loss: 0.5
+newkd_routing_loss: 0.05
 seed: 42
 #clip-grad: 15.0
 #clip-mode: norm

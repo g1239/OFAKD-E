@@ -8,3 +8,4 @@ from .mobilenetv1_moe import *
 from .resnet_moe import *
 from .resnetv1_5 import *
 from .test import *
+from .resnet_moe_bl import *

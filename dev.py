@@ -42,19 +42,26 @@ def get_module_dict(module_dict, k):
     return module_dict[k]
 
 model = create_model(
-    'resnet11_moe',
+    'resnet18_moe',
     pretrained=False,
     num_classes=100,
     #in_chans=3,
     scriptable=True)
-
-
-
+projector_list = nn.ModuleDict()
+operator_list = nn.ModuleDict()   
+position = 0
+for name,operator in model.named_modules():
+    if hasattr(operator, 'rwc'): #and name.endswith('1.moe_conv2'):
+        #print((name))
+        set_module_dict(operator_list, position, operator)
+        
+        #print(operator)
+        #print(name)
+        #print(operator     )                   
 #print(model.layer1[0])
 #print(model.layer1[1].moe_conv1.rwc)
 
-projector_list = nn.ModuleDict()
-operator_list = nn.ModuleDict()            
+         
 position = 0
 
 dummy_input = torch.randn(1, 3, 224, 224)
@@ -70,8 +77,17 @@ for operator in model.modules():
         set_module_dict(operator_list, position, operator)
         print((operator).rwc) 
 '''
-print(model)
+#print(model)
+#print(model.layer1[0].moe_conv1.cond_conv.weight.shape)
+a = torch.flatten(torch.svd(model.layer4[0].moe_conv1.cond_conv.weight).U)
+print(a.shape)
+print(model.layer4[0].moe_conv1.rwc.shape)
+s =  model.layer4[0].moe_conv1.rwc  *a
+print(s.shape)
 
+
+#print(s.shape)
+#print(v.shape)
 #print(projector_list)
 #for i in range(1,position+1):
     #print(get_module_dict(projector_list, position))

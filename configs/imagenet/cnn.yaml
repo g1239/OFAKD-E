@@ -1,7 +1,7 @@
 epochs: 100
 batch_size: 64
 lr: 0.01
-min_lr: 1e-5
+min_lr: 1e-6
 opt: sgd
 weight_decay: 1e-4
 sched: cosine
@@ -9,7 +9,12 @@ decay_epochs: 10
 warmup_epochs: 5
 color_jitter: 0
 smoothing: 0.1
-newkd_gt_loss: 0.7
-newkd_kd_loss: 0.7
-newkd_routing_loss: 0.6
+newkd_gt_loss: 0.5
+newkd_kd_loss: 0.5
+gt_loss_weight: 1.0
+kd_loss_weight: 1.0
+newkd_routing_loss: 0.05
 seed: 42
+
+dist_beta: 2
+dist_gamma: 2

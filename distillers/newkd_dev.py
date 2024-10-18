@@ -14,26 +14,57 @@ class newkd_dev(BaseDistiller):
 
     def __init__(self, student, teacher, criterion, args, **kwargs):
         super(newkd_dev, self).__init__(student, teacher, criterion, args)
-        self.projector = nn.Linear(8, self.args.num_classes,  bias=False) 
-        nn.init.zeros_(self.projector.weight)
 
-        for operator in student.modules():
-            if hasattr(operator, 'rw'):
-                last_op = operator
-        self.last_op = last_op
+        self.projector_list = nn.ModuleDict()
+        self.operator_list = nn.ModuleDict()       
+        self.num_projector = 0
+       
         
+        position = 0
+        #moe_position_list = [] # distinguish each moe operator
+        for operator in student.modules():
+            if hasattr(operator, 'rwc'):
+                position += 1
+                set_module_dict(self.operator_list, position, operator) #将stage和卷积映射层记录到self.projector字典中
+
+                #projector = nn.Linear(operator.interm_d, operator.interm_d,  bias=False) 
+                #projector.apply(init_weights)
+                #if position == 1:
+                #    pass
+                #else:
+                #    set_module_dict(self.projector_list, position, projector)             
+
+        self.projector = nn.Linear(get_module_dict(self.operator_list,1).interm_d  , self.args.num_classes,  bias=False) 
+        self.projector.apply(init_weights) 
+
+        self.num_projector = position + 1  #FIXME
+
     def forward(self, image, label, epoch, *args, **kwargs):
         with torch.no_grad():
             self.teacher.eval()
             logits_teacher = self.teacher(image)
 
-        logits_student = self.student(image)       
-        logits_route = self.projector(self.last_op.rw)
+        logits_student = self.student(image)
+    
 
-        lossmask_ratio = 0 if epoch < 80 else 1
+        logits_route = get_module_dict(self.operator_list, 1).rwc
+        for i in range(2,self.num_projector):      
+           logits_route = logits_route * get_module_dict(self.operator_list, i).rwc 
+           
+        '''
+        if epoch%5 == 0 or epoch < 10:
+            for i in range(1,self.num_projector):      
+                get_module_dict(self.operator_list, i).proj1.requires_grad =True
+        else:
+            for i in range(1,self.num_projector):      
+                get_module_dict(self.operator_list, i).proj1.requires_grad =False  
+        '''    
+        
+
+        lossmask_ratio = 0 if epoch < 10 else 1
         loss_kd = self.args.newkd_kd_loss * kd_loss(logits_student, logits_teacher, 1) #TODO pass args.moe_temperature
         loss_gt = self.args.newkd_gt_loss * self.criterion(logits_student, label)
-        loss_route = lossmask_ratio * self.args.newkd_routing_loss  * kd_loss( logits_teacher, logits_route, 0.8)  #FIXME select the dim of mean op for safer loss calculation / self.num_projector
+        loss_route = lossmask_ratio * self.args.newkd_routing_loss  * kd_loss(self.projector(logits_route), logits_teacher,  1) #FIXME select the dim of mean op for safer loss calculation / self.num_projector
 
         #torch.set_printoptions(edgeitems=logits_teacher.numel())
         #print(logits_teacher)
@@ -56,7 +87,6 @@ def routing_loss(routing_weights, weights_teacher, temperature=1.): #weights_tea
 
 def js_div(logit_route, logit_teacher, temperature=0.5):
     return 0.5 * kd_loss(logit_route , logit_teacher , temperature=temperature) + 0.5 * kd_loss(logit_teacher , logit_route , temperature=temperature)
-
 
 
 

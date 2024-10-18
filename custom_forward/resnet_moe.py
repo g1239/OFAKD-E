@@ -2,9 +2,9 @@ from custom_model import ResNet_moe
 
 from .registry import register_method
 import torch
-
-_target_class = ResNet_moe
 '''
+_target_class = ResNet_moe
+
 @register_method
 def forward_features(self, x, requires_feat):
     feat = []

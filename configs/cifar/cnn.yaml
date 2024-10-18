@@ -1,5 +1,5 @@
-epochs: 300
-batch_size: 128
+epochs: 240
+batch_size: 256
 lr: 0.05
 min_lr: 1e-3
 opt: sgd
@@ -8,3 +8,4 @@ sched: cosine
 warmup_epochs: 3
 color_jitter: 0
 smoothing: 0.1
+seed: 42

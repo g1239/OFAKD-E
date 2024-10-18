@@ -79,8 +79,8 @@ parser.add_argument('--teacher-pretrained', default='', type=str)
 parser.add_argument('--use-ema-teacher', action='store_true')
 
 parser.add_argument('--distiller', default='ofa', type=str)
-parser.add_argument('--gt-loss-weight', default=1., type=float)
-parser.add_argument('--kd-loss-weight', default=1., type=float)
+parser.add_argument('--gt-loss-weight', default=0.5, type=float)
+parser.add_argument('--kd-loss-weight', default=0.5, type=float)
 
 # KD parameters
 parser.add_argument('--kd-temperature', default=1, type=float)
@@ -92,8 +92,8 @@ parser.add_argument('--ofa-loss-weight', default=1, type=float)
 parser.add_argument('--ofa-temperature', default=1, type=float)
 
 # DIST parameters
-parser.add_argument('--dist-beta', default=1, type=float)
-parser.add_argument('--dist-gamma', default=1, type=float)
+parser.add_argument('--dist-beta', default=2, type=float)
+parser.add_argument('--dist-gamma', default=2, type=float)
 parser.add_argument('--dist-tau', default=1, type=float)
 
 # DKD parameters
@@ -318,7 +318,7 @@ parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
 parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
                     help='number of checkpoints to keep (default: 10)')
-parser.add_argument('-j', '--workers', type=int, default=8, metavar='N',
+parser.add_argument('-j', '--workers', type=int, default=12, metavar='N',
                     help='how many training processes to use (default: 4)')
 parser.add_argument('--save-images', action='store_true', default=False,
                     help='save images of input bathes every log interval for debugging')

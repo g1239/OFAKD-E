@@ -28,7 +28,7 @@ class newkd(BaseDistiller):
                 position += 1
                 #projector = nn.Linear(64, self.args.num_classes, bias=True) # TODO pass args.intermediate dimension
                 #projector = torch.nn.utils.parametrizations.orthogonal(nn.Linear(8, self.args.num_classes, bias=False) ,orthogonal_map='cayley') #orthogonal_map='matrix_exp'
-                projector = nn.Linear(8, self.args.num_classes,  bias=False) 
+                projector = nn.Linear(operator.interm_d , self.args.num_classes,  bias=False) 
                 nn.init.zeros_(projector.weight)
                 set_module_dict(self.projector_list, position, projector)
                 set_module_dict(self.operator_list, position, operator) #将stage和卷积映射层记录到self.projector字典中
@@ -49,7 +49,7 @@ class newkd(BaseDistiller):
         for i in range(1,self.num_projector):
             #new_name = name.replace('.','_')
             '''
-            weights_teacher = get_module_dict(self.projector, new_name)(logits_teacher) #将logit交给对应位置的projector处理，输出1*num_expert tensor
+            weights_teacher = get_module_dict(self.projector, new_name)(logits_teacher) #将logit交给对应位置的projector处理,输出1*num_expert tensor
             route_student_losses.append( routing_loss( operator.routing_weights_cache,weights_teacher ) )#TODO pass args.moe_temperature
             route_student_cache.append(operator.routing_weights_cache) #debug
             '''
@@ -57,7 +57,7 @@ class newkd(BaseDistiller):
             
             logits_route = get_module_dict(self.projector_list, i)(get_module_dict(self.operator_list, i).rwc) #将logit交给对应位置的projector处理，输出1*num_classes tensor
             #route_student_losses.append( routing_loss( logits_route,logits_teacher ) )#TODO pass args.moe_temperature
-            route_student_losses.append(kd_loss(logits_teacher, logits_route, 0.8))#  add reverse KL divergence to stronger supervision
+            route_student_losses.append(kd_loss(logits_teacher, logits_route, 1))#  add reverse KL divergence to stronger supervision
 
         lossmask_ratio = 0 if epoch < 10 else 1
         loss_kd = self.args.newkd_kd_loss * kd_loss(logits_student, logits_teacher, 1) #TODO pass args.moe_temperature

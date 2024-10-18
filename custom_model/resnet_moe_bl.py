@@ -1,9 +1,13 @@
+'''
+base on https://github.com/pytorch/vision/blob/6db1569c89094cf23f3bc41f79275c45e9fcb3f3/torchvision/models/resnet.py#L124
+'''
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.registry import register_model
+from timm.models.registry import register_model # type: ignore
 
-__all__ = ['resnet11_moe', 'resnet19_moe']
+__all__ = ['resnet10_moe_bl', 'resnet18_moe_bl', 'resnet34_moe_bl','ResNet_moe_bl']
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -16,32 +20,64 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-from timm.models.layers import CondConv2d
-class DynamicConv(nn.Module): 
-    def __init__(self, in_features, out_features, kernel_size, stride=1, padding='', dilation=1,
+from timm.models.layers import CondConv2d # type: ignore
+class DynamicConv(nn.Module):
+    """ Dynamic Conv layer
+    """
+    def __init__(self, in_features, out_features, kernel_size=1, stride=1, padding='', dilation=1,
                  groups=1, bias=False, num_experts=8):
         super().__init__()
         print('+++', num_experts)
-        self.num_experts = num_experts
-        self.interm_d = 32
-        self.proj1 = nn.Linear(in_features, self.interm_d)
-        self.proj2 = nn.Linear(self.interm_d,num_experts)
+        self.routing = nn.Linear(in_features, num_experts)
         self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
                  groups, bias, num_experts)
         self.rwc = 0 #routing_weights_cache
-        
-    def forward(self, x): # CondConv routing
+    def forward(self, x):
+        pooled_inputs = F.adaptive_avg_pool2d(x, 1).flatten(1)  # CondConv routing
+        routing_weights = torch.sigmoid(self.routing(pooled_inputs))
+        x = self.cond_conv(x, routing_weights)
+        return x
 
-        p = F.adaptive_avg_pool2d(x, 1).flatten(1)   #pooled_inputs
-        p1 = p.clone().detach() 
-        rw = torch.sigmoid(self.proj1(p)) # routing_weights_temp 
-        rw1 = torch.sigmoid(self.proj1(p1))
-        self.rwc = rw1
-        rw = self.proj2(rw)
-        x = self.cond_conv(x, rw)
-        return x
-    
-        return x
+
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None):
+        super(BasicBlock, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        if groups != 1 or base_width != 64:
+            raise ValueError('BasicBlock only supports groups=1 and base_width=64')
+        if dilation > 1:
+            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = norm_layer(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = norm_layer(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out   
+
 class BasicMoEBlock(nn.Module):
     expansion = 1
 
@@ -69,7 +105,7 @@ class BasicMoEBlock(nn.Module):
         out = self.moe_conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-        self.moe_conv2.rwc = self.moe_conv1.rw
+        
         out = self.moe_conv2(out)
         out = self.bn2(out)
 
@@ -81,6 +117,54 @@ class BasicMoEBlock(nn.Module):
 
         return out
     
+
+class Bottleneck(nn.Module):
+    # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
+    # while original implementation places the stride at the first 1x1 convolution(self.conv1)
+    # according to "Deep residual learning for image recognition"https://arxiv.org/abs/1512.03385.
+    # This variant is also known as ResNet V1.5 and improves accuracy according to
+    # https://ngc.nvidia.com/catalog/model-scripts/nvidia:resnet_50_v1_5_for_pytorch.
+
+    expansion = 4
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None):
+        super(Bottleneck, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        width = int(planes * (base_width / 64.)) * groups
+        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv1x1(inplanes, width)
+        self.bn1 = norm_layer(width)
+        self.conv2 = conv3x3(width, width, stride, groups, dilation)
+        self.bn2 = norm_layer(width)
+        self.conv3 = conv1x1(width, planes * self.expansion)
+        self.bn3 = norm_layer(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
 
 class MoEBottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
@@ -137,12 +221,12 @@ class MoEBottleneck(nn.Module):
     def get_routing_weights(self):
         return self.routing_weights_conv1,self.routing_weights_conv2
 
-class ResNet_moe(nn.Module):
+class ResNet_moe_bl(nn.Module):
 
     def __init__(self, denseblock, moeblock, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
-        super(ResNet_moe, self).__init__()
+        super(ResNet_moe_bl, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -185,9 +269,9 @@ class ResNet_moe(nn.Module):
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         if zero_init_residual:
             for m in self.modules():
-                if  isinstance(m, MoEBottleneck):
+                if isinstance(m, Bottleneck) or isinstance(m, MoEBottleneck):
                     nn.init.constant_(m.bn3.weight, 0)
-                elif isinstance(m, MoEBottleneck):
+                elif isinstance(m, BasicBlock) or isinstance(m, MoEBottleneck):
                     nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
@@ -235,26 +319,34 @@ class ResNet_moe(nn.Module):
     def forward(self, x):
         return self._forward_impl(x)
 
+
 def _resnet(arch, denseblock, moeblock, layers, pretrained, progress, **kwargs):
-    model = ResNet_moe(denseblock, moeblock, layers, **kwargs)
+    model = ResNet_moe_bl(denseblock, moeblock, layers, **kwargs)
     assert not pretrained, 'MoE Models have not pretrained weights.'
     return model
 
+
 @register_model
-def resnet11_moe(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
-    model =_resnet('resnet11_moe', BasicMoEBlock, BasicMoEBlock, [1, 1, 1, 1], pretrained, progress,
+def resnet10_moe_bl(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
+    model =_resnet('resnet10_moe_bl', BasicMoEBlock, BasicMoEBlock, [1, 1, 1, 1], pretrained, progress,
                    **kwargs)
-    model.default_cfg = {'architecture': 'resnet11_moe'}
+    model.default_cfg = {'architecture': 'resnet10_moe_bl'}
     return model
     
 
 @register_model
-def resnet19_moe(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
-    model =_resnet('resnet19_moe', BasicMoEBlock, BasicMoEBlock, [2, 2, 2, 2], pretrained, progress,
+def resnet18_moe_bl(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
+    model =_resnet('resnet18_moe_bl', BasicMoEBlock, BasicMoEBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
-    model.default_cfg = {'architecture': 'resnet19_moe'}
+    model.default_cfg = {'architecture': 'resnet18_moe_bl'}
     return model
+    
 
-
+@register_model
+def resnet34_moe_bl(pretrained=False, pretrained_cfg=None, progress=True, **kwargs):
+    model =_resnet('resnet34_moe_bl', BasicBlock, BasicMoEBlock, [3, 4, 6, 3], pretrained, progress,
+                   **kwargs)
+    model.default_cfg = {'architecture': 'resnet34_moe_bl'}
+    return model
 
 

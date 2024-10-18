@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from timm.models.registry import register_model # type: ignore
 
-__all__ = ['resnet18_moe', 'resnet34_moe', 'resnet50_moe', 'resnet101_moe',
+__all__ = ['resnet10_moe', 'resnet18_moe', 'resnet34_moe', 'resnet50_moe', 'resnet101_moe',
            'resnet152_moe','resnet10','ResNet_moe']
 
 
@@ -33,9 +33,9 @@ class DynamicConv(nn.Module):
         print('+++', num_experts)
         self.num_experts = num_experts
         #self.routing = nn.Linear(in_features, num_experts)
-        self.interm_d = 8
+        self.interm_d = 64
         self.proj1 = nn.Linear(in_features, self.interm_d)
-        #self.avg_pool = F.avg_pool1d(_ , kernel_size=self.interm_d // num_experts , stride=self.interm_d // num_experts)  # (self.interm_d,here is 256) mod num_experts must be 0 !!! 
+        self.proj2 = nn.Linear(self.interm_d,self.interm_d)
         self.cond_conv = CondConv2d(in_features, out_features, kernel_size, stride, padding, dilation,
                  groups, bias, num_experts)
         self.rwc = 0 #routing_weights_cache
@@ -50,10 +50,11 @@ class DynamicConv(nn.Module):
 
         p = F.adaptive_avg_pool2d(x, 1).flatten(1)   #pooled_inputs
         p1 = p.clone().detach() 
-        rw = torch.sigmoid(self.proj1(p)) # routing_weights_temp 
+        mask = self.proj2(torch.flatten(torch.svd(self.cond_conv.weight).U)) 
+        rw = torch.sigmoid(self.proj1(p)) * mask # routing_weights_temp 
         rw1 = torch.sigmoid(self.proj1(p1))
-        self.rwc = rw1 
-
+        self.rwc = rw1
+        rw = F.avg_pool1d(rw,kernel_size=self.interm_d // self.num_experts , stride=self.interm_d // self.num_experts) 
         x = self.cond_conv(x, rw)
         return x
     """    
